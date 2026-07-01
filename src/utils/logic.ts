@@ -274,6 +274,7 @@ export function sortByPriority(views: TrapView[]): TrapView[] {
 export interface KPIs {
   total_traps: number;
   active_issues: number;
+  overdue_pm: number;
   fleet_reliability_rate: number;
 }
 
@@ -284,6 +285,7 @@ export function computeKPIs(views: TrapView[]): KPIs {
   return {
     total_traps: total,
     active_issues,
+    overdue_pm: views.filter((v) => v.priority === 'Overdue').length,
     fleet_reliability_rate: total > 0 ? Math.round(((total - active_issues) / total) * 100) : 100,
   };
 }
@@ -321,6 +323,47 @@ export function alertBreakdown(views: TrapView[]): AlertTypeCount[] {
       color: colors[type],
     }))
     .sort((a, b) => b.count - a.count);
+}
+
+export interface FleetStatusSlice {
+  name: string;
+  description: string;
+  value: number;
+  color: string;
+}
+
+/**
+ * Fleet status grouped into four clear buckets — separates failing traps
+ * from PM schedule gaps so the chart is not mixing health and compliance.
+ */
+export function fleetStatusBreakdown(views: TrapView[]): FleetStatusSlice[] {
+  const slices: FleetStatusSlice[] = [
+    {
+      name: 'Failing Now',
+      description: 'Active issue on last inspection',
+      value: views.filter((v) => v.priority === 'Issue').length,
+      color: '#dc2626',
+    },
+    {
+      name: 'PM Overdue',
+      description: 'Inspection past due date',
+      value: views.filter((v) => v.priority === 'Overdue').length,
+      color: '#d97706',
+    },
+    {
+      name: 'PM On Track',
+      description: 'Inspected and within PM schedule',
+      value: views.filter((v) => v.priority === 'Healthy' || v.priority === 'Upcoming').length,
+      color: '#059669',
+    },
+    {
+      name: 'Never Inspected',
+      description: 'No PM record on file',
+      value: views.filter((v) => v.priority === 'Never inspected').length,
+      color: '#64748b',
+    },
+  ];
+  return slices.filter((d) => d.value > 0);
 }
 
 export interface PriorityBreakdown {

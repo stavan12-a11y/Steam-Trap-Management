@@ -70,6 +70,7 @@ export function ReportingPage() {
       toCSV(['KPI', 'Value'], [
         ['Total Traps', kpis.total_traps],
         ['Active Issues', kpis.active_issues],
+        ['Overdue PM', kpis.overdue_pm],
         ['Fleet Reliability %', kpis.fleet_reliability_rate],
         ['Generated', todayISO()],
       ]),

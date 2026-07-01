@@ -4,7 +4,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Legend,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -16,8 +15,9 @@ import { useSteamTrap } from '../store/SteamTrapContext';
 import {
   activeIssuesByType,
   allTrapViews,
+  fleetStatusBreakdown,
   issuesByArea,
-  priorityBreakdown,
+  type FleetStatusSlice,
 } from '../utils/logic';
 
 function ChartCard({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
@@ -38,10 +38,50 @@ function EmptyChart({ message }: { message: string }) {
   );
 }
 
+function FleetStatusTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: { payload: FleetStatusSlice }[];
+}) {
+  if (!active || !payload?.length) return null;
+  const item = payload[0].payload;
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-md">
+      <p className="font-semibold text-slate-900">{item.name}</p>
+      <p className="text-slate-600">
+        {item.value} trap{item.value !== 1 ? 's' : ''}
+      </p>
+      <p className="mt-0.5 text-xs text-slate-500">{item.description}</p>
+    </div>
+  );
+}
+
+function FleetStatusLegend({ slices }: { slices: FleetStatusSlice[] }) {
+  return (
+    <ul className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
+      {slices.map((slice) => (
+        <li key={slice.name} className="flex items-start gap-2 text-xs">
+          <span
+            className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
+            style={{ backgroundColor: slice.color }}
+          />
+          <span>
+            <span className="font-semibold text-slate-700">{slice.name}</span>
+            <span className="mx-1 font-mono text-slate-500">({slice.value})</span>
+            <span className="text-slate-500">— {slice.description}</span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function KPIChartsPanel() {
   const { data } = useSteamTrap();
   const views = useMemo(() => allTrapViews(data), [data]);
-  const fleetHealth = useMemo(() => priorityBreakdown(views), [views]);
+  const fleetStatus = useMemo(() => fleetStatusBreakdown(views), [views]);
   const issueTypes = useMemo(() => activeIssuesByType(views), [views]);
   const areaIssues = useMemo(() => issuesByArea(views).filter((a) => a.issues > 0), [views]);
 
@@ -53,30 +93,35 @@ export function KPIChartsPanel() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <ChartCard title="Fleet Health" subtitle="Traps by priority status">
-          {fleetHealth.length === 0 ? (
+        <ChartCard
+          title="Fleet Status"
+          subtitle="Operating condition vs PM schedule — each trap is in one bucket"
+        >
+          {fleetStatus.length === 0 ? (
             <EmptyChart message="No traps to display" />
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie
-                  data={fleetHealth}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={55}
-                  outerRadius={90}
-                  paddingAngle={2}
-                >
-                  {fleetHealth.map((entry) => (
-                    <Cell key={entry.name} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => [`${value ?? 0} traps`]} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-              </PieChart>
-            </ResponsiveContainer>
+            <>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={fleetStatus}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={48}
+                    outerRadius={78}
+                    paddingAngle={2}
+                  >
+                    {fleetStatus.map((entry) => (
+                      <Cell key={entry.name} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<FleetStatusTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+              <FleetStatusLegend slices={fleetStatus} />
+            </>
           )}
         </ChartCard>
 

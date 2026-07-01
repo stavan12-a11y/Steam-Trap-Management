@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   CheckCircle2,
+  Clock,
   Droplets,
   type LucideIcon,
 } from 'lucide-react';
@@ -32,7 +33,7 @@ function KPICard({ label, value, icon: Icon, accent, iconBg, hint }: KPICardProp
 
 export function KPIGrid({ kpis, equipmentCount }: { kpis: KPIs; equipmentCount: number }) {
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <KPICard
         label="Total Traps"
         value={kpis.total_traps}
@@ -47,6 +48,15 @@ export function KPIGrid({ kpis, equipmentCount }: { kpis: KPIs; equipmentCount: 
         icon={AlertTriangle}
         accent="text-red-600"
         iconBg="bg-red-50"
+        hint="Failing on last inspection"
+      />
+      <KPICard
+        label="Overdue PM"
+        value={kpis.overdue_pm}
+        icon={Clock}
+        accent="text-amber-600"
+        iconBg="bg-amber-50"
+        hint="Inspection past due date"
       />
       <KPICard
         label="Fleet Reliability"
