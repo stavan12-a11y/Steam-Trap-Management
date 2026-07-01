@@ -15,7 +15,7 @@ import { useSteamTrap } from '../store/SteamTrapContext';
 import {
   activeIssuesByType,
   allTrapViews,
-  issuesByArea,
+  issuesByEquipment,
   pmScheduleBreakdown,
   type StatusSlice,
 } from '../utils/logic';
@@ -83,7 +83,10 @@ export function KPIChartsPanel() {
   const views = useMemo(() => allTrapViews(data), [data]);
   const pmSchedule = useMemo(() => pmScheduleBreakdown(views), [views]);
   const issueTypes = useMemo(() => activeIssuesByType(views), [views]);
-  const areaIssues = useMemo(() => issuesByArea(views).filter((a) => a.issues > 0), [views]);
+  const equipmentIssues = useMemo(
+    () => issuesByEquipment(views).filter((e) => e.issues > 0),
+    [views],
+  );
 
   return (
     <section className="space-y-3">
@@ -141,24 +144,22 @@ export function KPIChartsPanel() {
           )}
         </ChartCard>
 
-        <ChartCard title="Issues by Area" subtitle="Active issues grouped by plant area">
-          {areaIssues.length === 0 ? (
-            <EmptyChart message="No active issues by area" />
+        <ChartCard title="Issues by Equipment" subtitle="Active issues grouped by equipment">
+          {equipmentIssues.length === 0 ? (
+            <EmptyChart message="No active issues by equipment" />
           ) : (
             <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={areaIssues} margin={{ bottom: 48 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis
-                  dataKey="area"
+              <BarChart data={equipmentIssues} layout="vertical" margin={{ left: 8, right: 16 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                <YAxis
+                  type="category"
+                  dataKey="equipment"
+                  width={110}
                   tick={{ fontSize: 10 }}
-                  angle={-30}
-                  textAnchor="end"
-                  height={56}
-                  interval={0}
                 />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} width={28} />
                 <Tooltip />
-                <Bar dataKey="issues" fill="#d97706" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="issues" fill="#d97706" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}

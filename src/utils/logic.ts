@@ -437,24 +437,24 @@ export function pmActivityByMonth(
   return result;
 }
 
-export interface AreaIssueCount {
-  area: string;
+export interface EquipmentIssueCount {
+  equipment: string;
   issues: number;
   traps: number;
 }
 
-/** Issue count grouped by equipment area. */
-export function issuesByArea(views: TrapView[]): AreaIssueCount[] {
-  const byArea = new Map<string, { issues: number; traps: number }>();
+/** Active issue count grouped by equipment. */
+export function issuesByEquipment(views: TrapView[]): EquipmentIssueCount[] {
+  const byEquipment = new Map<string, { issues: number; traps: number }>();
   for (const v of views) {
-    const area = v.equipment_area || 'Unassigned';
-    const cur = byArea.get(area) ?? { issues: 0, traps: 0 };
+    const name = v.equipment_name || 'Unassigned';
+    const cur = byEquipment.get(name) ?? { issues: 0, traps: 0 };
     cur.traps++;
     if (v.priority === 'Issue') cur.issues++;
-    byArea.set(area, cur);
+    byEquipment.set(name, cur);
   }
-  return [...byArea.entries()]
-    .map(([area, { issues, traps }]) => ({ area, issues, traps }))
+  return [...byEquipment.entries()]
+    .map(([equipment, { issues, traps }]) => ({ equipment, issues, traps }))
     .sort((a, b) => b.issues - a.issues);
 }
 
