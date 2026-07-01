@@ -6,15 +6,11 @@ const BASE =
 const ALERT_STYLES: Record<TrapAlertType, string> = {
   engineering_review: 'bg-violet-100 text-violet-800 ring-violet-600/20',
   repeat_failure: 'bg-orange-100 text-orange-800 ring-orange-600/20',
-  post_replacement_failure: 'bg-rose-100 text-rose-800 ring-rose-600/20',
-  failure_after_repair: 'bg-amber-100 text-amber-800 ring-amber-600/20',
 };
 
 const ALERT_COMPACT: Record<TrapAlertType, string> = {
   engineering_review: 'Eng. Review',
   repeat_failure: 'Repeat',
-  post_replacement_failure: 'Post-Replace',
-  failure_after_repair: 'After Repair',
 };
 
 export function TrapAlertBadge({ alert, compact }: { alert: TrapAlert; compact?: boolean }) {
@@ -40,8 +36,6 @@ export function TrapAlertBadges({ alerts, compact }: { alerts: TrapAlert[]; comp
 const BANNER_STYLES: Record<TrapAlertType, string> = {
   engineering_review: 'border-violet-200 bg-violet-50 text-violet-900',
   repeat_failure: 'border-orange-200 bg-orange-50 text-orange-900',
-  post_replacement_failure: 'border-rose-200 bg-rose-50 text-rose-900',
-  failure_after_repair: 'border-amber-200 bg-amber-50 text-amber-900',
 };
 
 export function TrapAlertBanner({ alert }: { alert: TrapAlert }) {

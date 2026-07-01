@@ -29,8 +29,6 @@ export type MaintenanceAction = (typeof MAINTENANCE_ACTIONS)[number];
 export const TRAP_ALERT_TYPES = [
   'engineering_review',
   'repeat_failure',
-  'post_replacement_failure',
-  'failure_after_repair',
 ] as const;
 export type TrapAlertType = (typeof TRAP_ALERT_TYPES)[number];
 
@@ -90,6 +88,8 @@ export interface Database {
   pm_records: PMRecord[];
   maintenance_records: MaintenanceRecord[];
   trap_types: TrapTypeConfig[];
+  /** Bumped when seed schema or demo data changes — prompts refresh if stale. */
+  data_version?: number;
 }
 
 /** Alias matching the PSV dashboard naming convention. */

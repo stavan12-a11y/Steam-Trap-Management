@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
-import { useSteamTrap } from '../store/SteamTrapContext';
+import { AlertTriangle, Plus, RotateCcw } from 'lucide-react';
+import { isStaleData, useSteamTrap } from '../store/SteamTrapContext';
 import { allTrapViews, computeKPIs, equipmentRollups } from '../utils/logic';
 import { KPIGrid } from '../components/KPIGrid';
 import { KPIChartsPanel } from '../components/KPIChartsPanel';
@@ -9,15 +9,38 @@ import { PriorityQueuePanel } from '../components/PriorityQueuePanel';
 import { EquipmentFormModal } from '../components/forms/EquipmentFormModal';
 
 export function Dashboard() {
-  const { data } = useSteamTrap();
+  const { data, resetToSeed } = useSteamTrap();
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
 
-  const kpis = useMemo(() => computeKPIs(allTrapViews(data), data), [data]);
+  const kpis = useMemo(() => computeKPIs(allTrapViews(data)), [data]);
   const rollups = useMemo(() => equipmentRollups(data), [data]);
+  const stale = isStaleData(data);
 
   return (
     <div className="space-y-6">
+      {stale && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+            <p>
+              <strong>Your data is from an older version.</strong> Charts, alerts, and KPIs need the
+              updated demo dataset. Click reset to load the latest data.
+            </p>
+          </div>
+          <button
+            className="btn-primary shrink-0"
+            onClick={() => {
+              if (confirm('Reset to the latest demo dataset? Your current changes will be lost.')) {
+                resetToSeed();
+              }
+            }}
+          >
+            <RotateCcw className="h-4 w-4" />
+            Reset demo data
+          </button>
+        </div>
+      )}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Steam Trap Overview</h2>

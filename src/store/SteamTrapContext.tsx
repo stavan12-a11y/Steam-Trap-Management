@@ -20,13 +20,13 @@ import type {
   TrapTypeName,
 } from '../types';
 import { ISSUE_TYPES, TRAP_TYPES } from '../types';
-import { seedData } from '../data/seedData';
+import { seedData, DATA_VERSION } from '../data/seedData';
 import { todayISO } from '../utils/logic';
 import { uid } from '../utils/id';
 import { isSupabaseConfigured, STATE_ROW_ID, STATE_TABLE, supabase } from '../lib/supabase';
 import { useAuth } from '../auth/AuthContext';
 
-const STORAGE_KEY = 'steam-trap-data-v1';
+const STORAGE_KEY = 'steam-trap-data-v2';
 
 export type SyncStatus = 'local' | 'loading' | 'saving' | 'saved' | 'error';
 
@@ -37,7 +37,12 @@ function normalizeData(raw: AppData): AppData {
     pm_records: raw.pm_records ?? [],
     maintenance_records: raw.maintenance_records ?? [],
     trap_types: raw.trap_types ?? [],
+    data_version: raw.data_version ?? 1,
   };
+}
+
+export function isStaleData(data: AppData): boolean {
+  return (data.data_version ?? 1) < DATA_VERSION;
 }
 
 function loadData(): AppData {
@@ -109,6 +114,7 @@ const EMPTY_DATA: AppData = {
   pm_records: [],
   maintenance_records: [],
   trap_types: [],
+  data_version: DATA_VERSION,
 };
 
 export function SteamTrapProvider({ children }: { children: ReactNode }) {
@@ -360,7 +366,10 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const resetToSeed = useCallback(() => setData(structuredClone(seedData)), []);
+  const resetToSeed = useCallback(
+    () => setData(structuredClone(seedData)),
+    [],
+  );
   const clearAll = useCallback(() => setData(structuredClone(EMPTY_DATA)), []);
 
   const value = useMemo<SteamTrapContextValue>(
