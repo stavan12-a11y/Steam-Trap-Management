@@ -274,12 +274,7 @@ export function sortByPriority(views: TrapView[]): TrapView[] {
 export interface KPIs {
   total_traps: number;
   active_issues: number;
-  overdue_pm: number;
-  healthy: number;
-  upcoming_pm: number;
   fleet_reliability_rate: number;
-  repeat_failures: number;
-  engineering_reviews: number;
 }
 
 export function computeKPIs(views: TrapView[]): KPIs {
@@ -289,12 +284,7 @@ export function computeKPIs(views: TrapView[]): KPIs {
   return {
     total_traps: total,
     active_issues,
-    overdue_pm: views.filter((v) => v.priority === 'Overdue').length,
-    healthy: views.filter((v) => v.priority === 'Healthy').length,
-    upcoming_pm: views.filter((v) => v.priority === 'Upcoming').length,
     fleet_reliability_rate: total > 0 ? Math.round(((total - active_issues) / total) * 100) : 100,
-    repeat_failures: views.filter((v) => trapHasAlert(v, 'repeat_failure')).length,
-    engineering_reviews: views.filter((v) => v.engineering_review_required).length,
   };
 }
 

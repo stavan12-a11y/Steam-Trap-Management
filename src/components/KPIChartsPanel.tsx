@@ -5,8 +5,6 @@ import {
   CartesianGrid,
   Cell,
   Legend,
-  Line,
-  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -17,10 +15,8 @@ import {
 import { useSteamTrap } from '../store/SteamTrapContext';
 import {
   activeIssuesByType,
-  alertBreakdown,
   allTrapViews,
   issuesByArea,
-  pmActivityByMonth,
   priorityBreakdown,
 } from '../utils/logic';
 
@@ -31,14 +27,14 @@ function ChartCard({ title, subtitle, children }: { title: string; subtitle?: st
         <h3 className="text-sm font-bold text-slate-900">{title}</h3>
         {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
       </div>
-      <div className="min-h-[220px] flex-1">{children}</div>
+      <div className="min-h-[260px] flex-1">{children}</div>
     </div>
   );
 }
 
 function EmptyChart({ message }: { message: string }) {
   return (
-    <div className="flex h-[220px] items-center justify-center text-sm text-slate-400">{message}</div>
+    <div className="flex h-[260px] items-center justify-center text-sm text-slate-400">{message}</div>
   );
 }
 
@@ -47,9 +43,7 @@ export function KPIChartsPanel() {
   const views = useMemo(() => allTrapViews(data), [data]);
   const fleetHealth = useMemo(() => priorityBreakdown(views), [views]);
   const issueTypes = useMemo(() => activeIssuesByType(views), [views]);
-  const pmTrend = useMemo(() => pmActivityByMonth(data), [data]);
   const areaIssues = useMemo(() => issuesByArea(views).filter((a) => a.issues > 0), [views]);
-  const alertCounts = useMemo(() => alertBreakdown(views), [views]);
 
   return (
     <section className="space-y-3">
@@ -58,12 +52,12 @@ export function KPIChartsPanel() {
         <p className="text-sm text-slate-500">Visual breakdown for trend analysis and planning.</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <ChartCard title="Fleet Health" subtitle="Traps by priority status">
           {fleetHealth.length === 0 ? (
             <EmptyChart message="No traps to display" />
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={260}>
               <PieChart>
                 <Pie
                   data={fleetHealth}
@@ -71,8 +65,8 @@ export function KPIChartsPanel() {
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
+                  innerRadius={55}
+                  outerRadius={90}
                   paddingAngle={2}
                 >
                   {fleetHealth.map((entry) => (
@@ -90,7 +84,7 @@ export function KPIChartsPanel() {
           {issueTypes.length === 0 ? (
             <EmptyChart message="No active issues" />
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={260}>
               <BarChart data={issueTypes} layout="vertical" margin={{ left: 8, right: 16 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                 <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
@@ -102,57 +96,24 @@ export function KPIChartsPanel() {
           )}
         </ChartCard>
 
-        <ChartCard title="PM Activity Trend" subtitle="Inspections and issues — last 12 months">
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={pmTrend} margin={{ left: 0, right: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} width={28} />
-              <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Line type="monotone" dataKey="inspections" stroke="#500000" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="issues" stroke="#dc2626" strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
         <ChartCard title="Issues by Area" subtitle="Active issues grouped by plant area">
           {areaIssues.length === 0 ? (
             <EmptyChart message="No active issues by area" />
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={areaIssues} margin={{ bottom: 40 }}>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={areaIssues} margin={{ bottom: 48 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis
                   dataKey="area"
                   tick={{ fontSize: 10 }}
-                  angle={-25}
+                  angle={-30}
                   textAnchor="end"
-                  height={50}
+                  height={56}
                   interval={0}
                 />
                 <YAxis allowDecimals={false} tick={{ fontSize: 11 }} width={28} />
                 <Tooltip />
                 <Bar dataKey="issues" fill="#d97706" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </ChartCard>
-        <ChartCard title="Smart Alerts" subtitle="Triggered analysis rules across the fleet">
-          {alertCounts.length === 0 ? (
-            <EmptyChart message="No smart alerts triggered" />
-          ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={alertCounts} layout="vertical" margin={{ left: 8, right: 16 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="label" width={100} tick={{ fontSize: 10 }} />
-                <Tooltip />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-                  {alertCounts.map((entry) => (
-                    <Cell key={entry.type} fill={entry.color} />
-                  ))}
-                </Bar>
               </BarChart>
             </ResponsiveContainer>
           )}
