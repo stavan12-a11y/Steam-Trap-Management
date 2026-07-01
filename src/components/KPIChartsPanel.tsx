@@ -16,7 +16,6 @@ import {
   activeIssuesByType,
   allTrapViews,
   issuesByArea,
-  operatingConditionBreakdown,
   pmScheduleBreakdown,
   type StatusSlice,
 } from '../utils/logic';
@@ -35,7 +34,7 @@ function ChartCard({ title, subtitle, children }: { title: string; subtitle?: st
 
 function EmptyChart({ message }: { message: string }) {
   return (
-    <div className="flex h-[200px] items-center justify-center text-sm text-slate-400">{message}</div>
+    <div className="flex h-[260px] items-center justify-center text-sm text-slate-400">{message}</div>
   );
 }
 
@@ -59,57 +58,29 @@ function StatusTooltip({
   );
 }
 
-function MiniDonut({ title, subtitle, slices }: { title: string; subtitle: string; slices: StatusSlice[] }) {
-  if (slices.length === 0) {
-    return (
-      <div>
-        <p className="text-xs font-bold text-slate-700">{title}</p>
-        <p className="text-[11px] text-slate-400">{subtitle}</p>
-        <EmptyChart message="No data" />
-      </div>
-    );
-  }
-
+function PmScheduleLegend({ slices }: { slices: StatusSlice[] }) {
   return (
-    <div>
-      <p className="text-xs font-bold text-slate-700">{title}</p>
-      <p className="mb-2 text-[11px] text-slate-400">{subtitle}</p>
-      <ResponsiveContainer width="100%" height={160}>
-        <PieChart>
-          <Pie
-            data={slices}
-            dataKey="value"
-            nameKey="name"
-            cx="50%"
-            cy="50%"
-            innerRadius={38}
-            outerRadius={62}
-            paddingAngle={2}
-          >
-            {slices.map((entry) => (
-              <Cell key={entry.name} fill={entry.color} />
-            ))}
-          </Pie>
-          <Tooltip content={<StatusTooltip />} />
-        </PieChart>
-      </ResponsiveContainer>
-      <ul className="mt-1 space-y-1">
-        {slices.map((slice) => (
-          <li key={slice.name} className="flex items-center gap-1.5 text-[11px] text-slate-600">
-            <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: slice.color }} />
+    <ul className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
+      {slices.map((slice) => (
+        <li key={slice.name} className="flex items-start gap-2 text-xs">
+          <span
+            className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
+            style={{ backgroundColor: slice.color }}
+          />
+          <span>
             <span className="font-semibold text-slate-700">{slice.name}</span>
-            <span className="font-mono text-slate-500">({slice.value})</span>
-          </li>
-        ))}
-      </ul>
-    </div>
+            <span className="mx-1 font-mono text-slate-500">({slice.value})</span>
+            <span className="text-slate-500">— {slice.description}</span>
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
 export function KPIChartsPanel() {
   const { data } = useSteamTrap();
   const views = useMemo(() => allTrapViews(data), [data]);
-  const operating = useMemo(() => operatingConditionBreakdown(views), [views]);
   const pmSchedule = useMemo(() => pmScheduleBreakdown(views), [views]);
   const issueTypes = useMemo(() => activeIssuesByType(views), [views]);
   const areaIssues = useMemo(() => issuesByArea(views).filter((a) => a.issues > 0), [views]);
@@ -123,21 +94,35 @@ export function KPIChartsPanel() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <ChartCard
-          title="Operating vs PM Schedule"
-          subtitle="Two independent views — a trap can be failing but PM on track if inspected recently"
+          title="PM Schedule"
+          subtitle="When is the next inspection due? Independent of pass/fail status"
         >
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <MiniDonut
-              title="Operating Condition"
-              subtitle="What did the last inspection find?"
-              slices={operating}
-            />
-            <MiniDonut
-              title="PM Schedule"
-              subtitle="When is the next inspection due?"
-              slices={pmSchedule}
-            />
-          </div>
+          {pmSchedule.length === 0 ? (
+            <EmptyChart message="No traps to display" />
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={pmSchedule}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={48}
+                    outerRadius={78}
+                    paddingAngle={2}
+                  >
+                    {pmSchedule.map((entry) => (
+                      <Cell key={entry.name} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<StatusTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+              <PmScheduleLegend slices={pmSchedule} />
+            </>
+          )}
         </ChartCard>
 
         <ChartCard title="Active Issues by Type" subtitle="Current open issues only">

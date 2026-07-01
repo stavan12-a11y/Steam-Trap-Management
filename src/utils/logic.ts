@@ -332,31 +332,6 @@ export interface StatusSlice {
   color: string;
 }
 
-/** Operating condition from the latest inspection only — independent of PM schedule. */
-export function operatingConditionBreakdown(views: TrapView[]): StatusSlice[] {
-  const slices: StatusSlice[] = [
-    {
-      name: 'Working',
-      description: 'Last inspection passed',
-      value: views.filter((v) => v.status === 'Working').length,
-      color: '#059669',
-    },
-    {
-      name: 'Failing',
-      description: 'Issue found on last inspection',
-      value: views.filter((v) => v.status === 'Issue').length,
-      color: '#dc2626',
-    },
-    {
-      name: 'Not Inspected',
-      description: 'No inspection recorded yet',
-      value: views.filter((v) => v.status === null).length,
-      color: '#64748b',
-    },
-  ];
-  return slices.filter((d) => d.value > 0);
-}
-
 /** PM schedule from due dates only — independent of whether the trap is failing. */
 export function pmScheduleBreakdown(views: TrapView[]): StatusSlice[] {
   const slices: StatusSlice[] = [
