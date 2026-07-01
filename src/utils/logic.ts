@@ -325,41 +325,73 @@ export function alertBreakdown(views: TrapView[]): AlertTypeCount[] {
     .sort((a, b) => b.count - a.count);
 }
 
-export interface FleetStatusSlice {
+export interface StatusSlice {
   name: string;
   description: string;
   value: number;
   color: string;
 }
 
-/**
- * Fleet status grouped into four clear buckets — separates failing traps
- * from PM schedule gaps so the chart is not mixing health and compliance.
- */
-export function fleetStatusBreakdown(views: TrapView[]): FleetStatusSlice[] {
-  const slices: FleetStatusSlice[] = [
+/** Operating condition from the latest inspection only — independent of PM schedule. */
+export function operatingConditionBreakdown(views: TrapView[]): StatusSlice[] {
+  const slices: StatusSlice[] = [
     {
-      name: 'Failing Now',
-      description: 'Active issue on last inspection',
-      value: views.filter((v) => v.priority === 'Issue').length,
+      name: 'Working',
+      description: 'Last inspection passed',
+      value: views.filter((v) => v.status === 'Working').length,
+      color: '#059669',
+    },
+    {
+      name: 'Failing',
+      description: 'Issue found on last inspection',
+      value: views.filter((v) => v.status === 'Issue').length,
       color: '#dc2626',
     },
     {
-      name: 'PM Overdue',
-      description: 'Inspection past due date',
-      value: views.filter((v) => v.priority === 'Overdue').length,
-      color: '#d97706',
+      name: 'Not Inspected',
+      description: 'No inspection recorded yet',
+      value: views.filter((v) => v.status === null).length,
+      color: '#64748b',
+    },
+  ];
+  return slices.filter((d) => d.value > 0);
+}
+
+/** PM schedule from due dates only — independent of whether the trap is failing. */
+export function pmScheduleBreakdown(views: TrapView[]): StatusSlice[] {
+  const slices: StatusSlice[] = [
+    {
+      name: 'On Track',
+      description: 'Next PM more than 14 days away',
+      value: views.filter(
+        (v) => v.last_pm_date && v.days_until_due !== null && v.days_until_due > UPCOMING_WINDOW_DAYS,
+      ).length,
+      color: '#059669',
     },
     {
-      name: 'PM On Track',
-      description: 'Inspected and within PM schedule',
-      value: views.filter((v) => v.priority === 'Healthy' || v.priority === 'Upcoming').length,
-      color: '#059669',
+      name: 'Due Soon',
+      description: 'Next PM within 14 days',
+      value: views.filter(
+        (v) =>
+          v.last_pm_date &&
+          v.days_until_due !== null &&
+          v.days_until_due >= 0 &&
+          v.days_until_due <= UPCOMING_WINDOW_DAYS,
+      ).length,
+      color: '#0284c7',
+    },
+    {
+      name: 'Overdue',
+      description: 'Inspection past due date',
+      value: views.filter(
+        (v) => v.last_pm_date && v.days_until_due !== null && v.days_until_due < 0,
+      ).length,
+      color: '#d97706',
     },
     {
       name: 'Never Inspected',
       description: 'No PM record on file',
-      value: views.filter((v) => v.priority === 'Never inspected').length,
+      value: views.filter((v) => !v.last_pm_date).length,
       color: '#64748b',
     },
   ];
