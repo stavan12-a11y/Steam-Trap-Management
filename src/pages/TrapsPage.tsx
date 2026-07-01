@@ -4,19 +4,19 @@ import { Plus } from 'lucide-react';
 import { useSteamTrap } from '../store/SteamTrapContext';
 import { allTrapViews, sortByPriority } from '../utils/logic';
 import { dueLabel } from '../utils/format';
-import type { Priority } from '../types';
 import { Breadcrumbs } from '../components/Breadcrumbs';
-import { PriorityBadge, StatusBadge } from '../components/Badges';
+import { EngineeringReviewBadge, PriorityBadge, StatusBadge } from '../components/Badges';
 import { TrapFormModal } from '../components/forms/TrapFormModal';
 
-type Filter = 'All' | 'Issues' | 'Overdue' | 'Upcoming' | 'Healthy';
+type Filter = 'All' | 'Issues' | 'Overdue' | 'Upcoming' | 'Healthy' | 'Eng. Review';
 
-const FILTERS: { key: Filter; match: (p: Priority) => boolean }[] = [
+const FILTERS: { key: Filter; match: (v: ReturnType<typeof allTrapViews>[number]) => boolean }[] = [
   { key: 'All', match: () => true },
-  { key: 'Issues', match: (p) => p === 'Issue' },
-  { key: 'Overdue', match: (p) => p === 'Overdue' },
-  { key: 'Upcoming', match: (p) => p === 'Upcoming' },
-  { key: 'Healthy', match: (p) => p === 'Healthy' },
+  { key: 'Issues', match: (v) => v.priority === 'Issue' },
+  { key: 'Overdue', match: (v) => v.priority === 'Overdue' },
+  { key: 'Upcoming', match: (v) => v.priority === 'Upcoming' },
+  { key: 'Healthy', match: (v) => v.priority === 'Healthy' },
+  { key: 'Eng. Review', match: (v) => v.engineering_review_required },
 ];
 
 export function TrapsPage() {
@@ -27,12 +27,20 @@ export function TrapsPage() {
   const [showAdd, setShowAdd] = useState(false);
 
   const counts = useMemo(() => {
-    const c: Record<Filter, number> = { All: traps.length, Issues: 0, Overdue: 0, Upcoming: 0, Healthy: 0 };
+    const c: Record<Filter, number> = {
+      All: traps.length,
+      Issues: 0,
+      Overdue: 0,
+      Upcoming: 0,
+      Healthy: 0,
+      'Eng. Review': 0,
+    };
     for (const t of traps) {
       if (t.priority === 'Issue') c.Issues++;
       else if (t.priority === 'Overdue') c.Overdue++;
       else if (t.priority === 'Upcoming') c.Upcoming++;
       else if (t.priority === 'Healthy') c.Healthy++;
+      if (t.engineering_review_required) c['Eng. Review']++;
     }
     return c;
   }, [traps]);
@@ -41,7 +49,7 @@ export function TrapsPage() {
     const f = FILTERS.find((x) => x.key === filter)!;
     const needle = q.trim().toLowerCase();
     return traps.filter((t) => {
-      if (!f.match(t.priority)) return false;
+      if (!f.match(t)) return false;
       if (!needle) return true;
       return (
         t.tag.toLowerCase().includes(needle) ||
@@ -113,6 +121,11 @@ export function TrapsPage() {
                     <Link to={`/traps/${t.id}`} className="font-mono font-semibold text-maroon-800 hover:underline">
                       {t.tag}
                     </Link>
+                    {t.engineering_review_required && (
+                      <span className="ml-2">
+                        <EngineeringReviewBadge compact />
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-2.5">
                     <PriorityBadge priority={t.priority} />

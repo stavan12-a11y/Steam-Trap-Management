@@ -29,12 +29,12 @@ function ts(daysOffset: number): string {
  */
 export function buildSeedDatabase(): Database {
   const equipment: Database["equipment"] = [
-    { id: "eq-boiler-1", name: "Boiler 1", area: "Utilities", is_running: true },
-    { id: "eq-boiler-2", name: "Boiler 2", area: "Utilities", is_running: true },
-    { id: "eq-deaerator", name: "Deaerator", area: "Utilities", is_running: true },
-    { id: "eq-crude-preheat", name: "Crude Preheat Train", area: "Process — Unit 100", is_running: true },
-    { id: "eq-reboiler-c201", name: "Reboiler C-201", area: "Process — Unit 200", is_running: false },
-    { id: "eq-steam-header", name: "Main Steam Header", area: "Distribution", is_running: true },
+    { id: "eq-boiler-1", name: "Boiler 1", area: "Utilities" },
+    { id: "eq-boiler-2", name: "Boiler 2", area: "Utilities" },
+    { id: "eq-deaerator", name: "Deaerator", area: "Utilities" },
+    { id: "eq-crude-preheat", name: "Crude Preheat Train", area: "Process — Unit 100" },
+    { id: "eq-reboiler-c201", name: "Reboiler C-201", area: "Process — Unit 200" },
+    { id: "eq-steam-header", name: "Main Steam Header", area: "Distribution" },
   ];
 
   const traps: Database["traps"] = [
@@ -78,8 +78,11 @@ export function buildSeedDatabase(): Database {
     });
   };
 
-  // ST-0001 Inverted Bucket (365d) — currently an ISSUE (blowing)
-  addPM("tr-0001", 400, "Working", null, "R. Alvarez", "Discharge normal, no live steam.");
+  // ST-0001 Inverted Bucket (365d) — currently an ISSUE (blowing), 3 failures in 36mo → engineering review
+  addPM("tr-0001", 900, "Issue", "Blowing", "R. Alvarez", "Live steam blow-through.");
+  addPM("tr-0001", 600, "Working", null, "R. Alvarez", "Repaired seat, re-tested OK.");
+  addPM("tr-0001", 400, "Issue", "Blowing", "R. Alvarez", "Blowing again after 6 months.");
+  addPM("tr-0001", 200, "Working", null, "M. Chen", "Seat lapped, normal discharge.");
   addPM("tr-0001", 30, "Issue", "Blowing", "R. Alvarez", "Continuous live steam blow-through. Tag for repair.");
 
   // ST-0002 Thermodynamic (120d) — OVERDUE (last PM 200d ago)
@@ -110,10 +113,10 @@ export function buildSeedDatabase(): Database {
   addPM("tr-0010", 260, "Issue", "Blocked", "M. Chen", "Plugged, cold downstream.");
   addPM("tr-0010", 150, "Working", null, "M. Chen", "Cleaned and re-tested, discharging.");
 
-  // ST-0011 Float & Thermostatic (180d) — on stopped equipment, healthy
+  // ST-0011 Float & Thermostatic (180d) — healthy
   addPM("tr-0011", 60, "Working", null, "S. Patel", "Good.");
 
-  // ST-0012 Bimetallic — never inspected, on stopped equipment
+  // ST-0012 Bimetallic — never inspected
 
   // ST-0013 Thermodynamic (120d) — UPCOMING (due in ~7 days)
   addPM("tr-0013", 113, "Working", null, "R. Alvarez", "Cycling normally.");
@@ -126,10 +129,50 @@ export function buildSeedDatabase(): Database {
 
   // ST-0016 Inverted Bucket (365d) — never inspected
 
+  const maintenance_records: Database["maintenance_records"] = [
+    {
+      id: "mnt-0001",
+      trap_id: "tr-0001",
+      date: daysAgo(600),
+      action: "Repair",
+      technician: "R. Alvarez",
+      description: "Replaced seat and disc assembly",
+      parts_replaced: "Seat/disc kit",
+      cost: 285,
+      notes: "Trap was blowing live steam. Restored to service.",
+      created_at: ts(600),
+    },
+    {
+      id: "mnt-0002",
+      trap_id: "tr-0001",
+      date: daysAgo(200),
+      action: "Maintenance",
+      technician: "M. Chen",
+      description: "Lapped seat, cleaned strainer",
+      parts_replaced: "",
+      cost: null,
+      notes: "Routine corrective maintenance after second failure.",
+      created_at: ts(200),
+    },
+    {
+      id: "mnt-0003",
+      trap_id: "tr-0010",
+      date: daysAgo(150),
+      action: "Maintenance",
+      technician: "M. Chen",
+      description: "Cleared blockage in orifice",
+      parts_replaced: "",
+      cost: null,
+      notes: "Downstream line was cold. Trap cycling normally after cleaning.",
+      created_at: ts(150),
+    },
+  ];
+
   return {
     equipment,
     traps,
     pm_records,
+    maintenance_records,
     trap_types: DEFAULT_TRAP_TYPES.map((t) => ({ ...t })),
   };
 }

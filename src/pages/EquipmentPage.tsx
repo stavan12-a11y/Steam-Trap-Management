@@ -1,16 +1,16 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { AlertTriangle, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useSteamTrap } from '../store/SteamTrapContext';
 import { allTrapViews, sortByPriority } from '../utils/logic';
 import { dueLabel } from '../utils/format';
 import { Breadcrumbs } from '../components/Breadcrumbs';
-import { PriorityBadge, RunningBadge, StatusBadge } from '../components/Badges';
+import { EngineeringReviewBadge, PriorityBadge, StatusBadge } from '../components/Badges';
 import { TrapFormModal } from '../components/forms/TrapFormModal';
 
 export function EquipmentPage() {
   const { equipmentId } = useParams<{ equipmentId: string }>();
-  const { data, getEquipment, updateEquipment } = useSteamTrap();
+  const { data, getEquipment } = useSteamTrap();
   const equipment = equipmentId ? getEquipment(equipmentId) : undefined;
   const [showAddTrap, setShowAddTrap] = useState(false);
 
@@ -32,6 +32,7 @@ export function EquipmentPage() {
 
   const issues = traps.filter((t) => t.priority === 'Issue').length;
   const overdue = traps.filter((t) => t.priority === 'Overdue').length;
+  const engReviews = traps.filter((t) => t.engineering_review_required).length;
 
   return (
     <div className="space-y-6">
@@ -44,37 +45,18 @@ export function EquipmentPage() {
           <h2 className="text-2xl font-bold text-slate-900">{equipment.name}</h2>
           <p className="text-sm text-slate-500">{equipment.area}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <RunningBadge running={equipment.is_running} />
-          <button
-            className={equipment.is_running ? 'btn-secondary' : 'btn-primary'}
-            onClick={() => updateEquipment(equipment.id, { is_running: !equipment.is_running })}
-          >
-            {equipment.is_running ? 'Stop equipment' : 'Start equipment'}
-          </button>
-          <button className="btn-primary" onClick={() => setShowAddTrap(true)}>
-            <Plus className="h-4 w-4" />
-            Add Trap
-          </button>
-        </div>
+        <button className="btn-primary" onClick={() => setShowAddTrap(true)}>
+          <Plus className="h-4 w-4" />
+          Add Trap
+        </button>
       </div>
-
-      {!equipment.is_running && (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
-          <p>
-            <strong>{equipment.name} is stopped.</strong> Preventive maintenance cannot be
-            recorded for its traps until the equipment is running.
-          </p>
-        </div>
-      )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { label: 'Traps', value: traps.length },
           { label: 'Issues', value: issues, cls: issues ? 'text-red-600' : '' },
           { label: 'Overdue', value: overdue, cls: overdue ? 'text-amber-600' : '' },
-          { label: 'Area', value: equipment.area, cls: 'text-base' },
+          { label: 'Eng. Review', value: engReviews, cls: engReviews ? 'text-violet-600' : '' },
         ].map((s) => (
           <div key={s.label} className="card p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{s.label}</p>
@@ -110,6 +92,11 @@ export function EquipmentPage() {
                       <Link to={`/traps/${v.id}`} className="font-mono font-semibold text-maroon-800 hover:underline">
                         {v.tag}
                       </Link>
+                      {v.engineering_review_required && (
+                        <span className="ml-2">
+                          <EngineeringReviewBadge compact />
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-2.5">
                       <PriorityBadge priority={v.priority} />

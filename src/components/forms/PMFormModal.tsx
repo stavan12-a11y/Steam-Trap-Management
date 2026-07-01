@@ -57,8 +57,6 @@ export function PMFormModal({ open, onClose, trapId }: PMFormModalProps) {
     onClose();
   };
 
-  const canSubmit = view?.equipment_running !== false;
-
   return (
     <Modal
       open={open}
@@ -69,20 +67,12 @@ export function PMFormModal({ open, onClose, trapId }: PMFormModalProps) {
           <button className="btn-secondary" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn-primary" onClick={handleSave} disabled={!canSubmit}>
+          <button className="btn-primary" onClick={handleSave}>
             Submit PM
           </button>
         </>
       }
     >
-      {!canSubmit && view && (
-        <div className="mb-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>
-            <strong>{view.equipment_name} is stopped.</strong> PM entry is disabled.
-          </span>
-        </div>
-      )}
       {error && (
         <p className="mb-4 flex items-center gap-1.5 text-sm font-medium text-red-600">
           <AlertTriangle className="h-4 w-4" />

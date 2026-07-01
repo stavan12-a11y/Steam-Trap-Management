@@ -1,6 +1,8 @@
 import type {
   Database,
   Equipment,
+  IssueType,
+  MaintenanceRecord,
   PMRecord,
   Priority,
   Trap,
@@ -9,6 +11,8 @@ import type {
 import { PRIORITIES } from '../types';
 
 export const UPCOMING_WINDOW_DAYS = 14;
+export const ENGINEERING_REVIEW_FAILURE_THRESHOLD = 3;
+export const ENGINEERING_REVIEW_WINDOW_MONTHS = 36;
 
 /** Today as a UTC date string (YYYY-MM-DD). */
 export function todayISO(): string {
@@ -30,6 +34,11 @@ export function addDays(dateStr: string, days: number): string {
 /** b - a in whole days. */
 export function daysBetween(a: string, b: string): number {
   return Math.round((parseUTC(b) - parseUTC(a)) / 86400000);
+}
+
+/** Date N months before today (approx. 30 days/month). */
+export function monthsAgoISO(months: number, today = todayISO()): string {
+  return addDays(today, -months * 30);
 }
 
 const PRIORITY_RANK: Record<Priority, number> = PRIORITIES.reduce(
@@ -63,9 +72,49 @@ export function recordsForTrap(db: Database, trapId: string): PMRecord[] {
     });
 }
 
+/** All maintenance records for a trap, newest first. */
+export function maintenanceForTrap(db: Database, trapId: string): MaintenanceRecord[] {
+  return (db.maintenance_records ?? [])
+    .filter((r) => r.trap_id === trapId)
+    .sort((a, b) => {
+      if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+      return a.created_at < b.created_at ? 1 : -1;
+    });
+}
+
 export function intervalForType(db: Database, type: string): number {
   const cfg = db.trap_types.find((t) => t.type === type);
   return cfg ? cfg.pm_interval_days : 365;
+}
+
+/** Count issue PM records within a rolling window. */
+export function failureCountInWindow(
+  records: PMRecord[],
+  windowStart: string,
+  today = todayISO(),
+): number {
+  return records.filter(
+    (r) => r.status === 'Issue' && r.date >= windowStart && r.date <= today,
+  ).length;
+}
+
+/** Derive engineering review flag from failure history. */
+export function evaluateEngineeringReview(
+  records: PMRecord[],
+  today = todayISO(),
+): { required: boolean; reason: string | null; failure_count_36mo: number } {
+  const windowStart = monthsAgoISO(ENGINEERING_REVIEW_WINDOW_MONTHS, today);
+  const failure_count_36mo = failureCountInWindow(records, windowStart, today);
+
+  if (failure_count_36mo >= ENGINEERING_REVIEW_FAILURE_THRESHOLD) {
+    return {
+      required: true,
+      reason: `${failure_count_36mo} failures in the last ${ENGINEERING_REVIEW_WINDOW_MONTHS} months — engineering review recommended`,
+      failure_count_36mo,
+    };
+  }
+
+  return { required: false, reason: null, failure_count_36mo };
 }
 
 /**
@@ -81,6 +130,7 @@ export function buildTrapView(
   const records = db.pm_records.filter((r) => r.trap_id === trap.id);
   const latest = latestRecord(records);
   const interval = intervalForType(db, trap.type);
+  const review = evaluateEngineeringReview(records, today);
 
   const last_pm_date = latest ? latest.date : null;
   const status = latest ? latest.status : null;
@@ -90,23 +140,22 @@ export function buildTrapView(
   const days_until_due = next_pm_date ? daysBetween(today, next_pm_date) : null;
 
   let priority: Priority;
-  if (status === "Issue") {
-    priority = "Issue";
+  if (status === 'Issue') {
+    priority = 'Issue';
   } else if (!last_pm_date) {
-    priority = "Never inspected";
+    priority = 'Never inspected';
   } else if (days_until_due !== null && days_until_due < 0) {
-    priority = "Overdue";
+    priority = 'Overdue';
   } else if (days_until_due !== null && days_until_due <= UPCOMING_WINDOW_DAYS) {
-    priority = "Upcoming";
+    priority = 'Upcoming';
   } else {
-    priority = "Healthy";
+    priority = 'Healthy';
   }
 
   return {
     ...trap,
     equipment_name: equipment.name,
     equipment_area: equipment.area,
-    equipment_running: equipment.is_running,
     status,
     issue_type,
     last_pm_date,
@@ -114,6 +163,9 @@ export function buildTrapView(
     days_until_due,
     priority,
     pm_interval_days: interval,
+    failure_count_36mo: review.failure_count_36mo,
+    engineering_review_required: review.required,
+    engineering_review_reason: review.reason,
   };
 }
 
@@ -145,25 +197,116 @@ export interface KPIs {
   active_issues: number;
   overdue_pm: number;
   healthy: number;
+  engineering_reviews: number;
+  never_inspected: number;
+  upcoming_pm: number;
 }
 
 export function computeKPIs(views: TrapView[]): KPIs {
   return {
     total_traps: views.length,
-    active_issues: views.filter((v) => v.priority === "Issue").length,
-    overdue_pm: views.filter((v) => v.priority === "Overdue").length,
-    healthy: views.filter((v) => v.priority === "Healthy").length,
+    active_issues: views.filter((v) => v.priority === 'Issue').length,
+    overdue_pm: views.filter((v) => v.priority === 'Overdue').length,
+    healthy: views.filter((v) => v.priority === 'Healthy').length,
+    engineering_reviews: views.filter((v) => v.engineering_review_required).length,
+    never_inspected: views.filter((v) => v.priority === 'Never inspected').length,
+    upcoming_pm: views.filter((v) => v.priority === 'Upcoming').length,
   };
+}
+
+export interface PriorityBreakdown {
+  name: string;
+  value: number;
+  color: string;
+}
+
+export function priorityBreakdown(views: TrapView[]): PriorityBreakdown[] {
+  const colors: Record<Priority, string> = {
+    Issue: '#dc2626',
+    Overdue: '#d97706',
+    Upcoming: '#0284c7',
+    'Never inspected': '#64748b',
+    Healthy: '#059669',
+  };
+  return PRIORITIES.map((p) => ({
+    name: p,
+    value: views.filter((v) => v.priority === p).length,
+    color: colors[p],
+  })).filter((d) => d.value > 0);
+}
+
+export interface IssueTypeCount {
+  type: IssueType;
+  count: number;
+}
+
+/** Count current active issues by type. */
+export function activeIssuesByType(views: TrapView[]): IssueTypeCount[] {
+  const counts = new Map<IssueType, number>();
+  for (const v of views) {
+    if (v.priority === 'Issue' && v.issue_type) {
+      counts.set(v.issue_type, (counts.get(v.issue_type) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()].map(([type, count]) => ({ type, count }));
+}
+
+export interface MonthlyPMCount {
+  month: string;
+  inspections: number;
+  issues: number;
+}
+
+/** PM activity grouped by month for the last N months. */
+export function pmActivityByMonth(
+  db: Database,
+  months = 12,
+  today = todayISO(),
+): MonthlyPMCount[] {
+  const result: MonthlyPMCount[] = [];
+  const todayDate = new Date(`${today}T00:00:00Z`);
+
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(todayDate);
+    d.setUTCMonth(d.getUTCMonth() - i);
+    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    const inspections = db.pm_records.filter((r) => r.date.startsWith(key)).length;
+    const issues = db.pm_records.filter((r) => r.date.startsWith(key) && r.status === 'Issue').length;
+    const label = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' });
+    result.push({ month: label, inspections, issues });
+  }
+  return result;
+}
+
+export interface AreaIssueCount {
+  area: string;
+  issues: number;
+  traps: number;
+}
+
+/** Issue count grouped by equipment area. */
+export function issuesByArea(views: TrapView[]): AreaIssueCount[] {
+  const byArea = new Map<string, { issues: number; traps: number }>();
+  for (const v of views) {
+    const area = v.equipment_area || 'Unassigned';
+    const cur = byArea.get(area) ?? { issues: 0, traps: 0 };
+    cur.traps++;
+    if (v.priority === 'Issue') cur.issues++;
+    byArea.set(area, cur);
+  }
+  return [...byArea.entries()]
+    .map(([area, { issues, traps }]) => ({ area, issues, traps }))
+    .sort((a, b) => b.issues - a.issues);
 }
 
 export interface EquipmentRollup {
   id: string;
   name: string;
   area: string;
-  is_running: boolean;
   trap_count: number;
   issue_count: number;
   overdue_count: number;
+  engineering_review_count: number;
 }
 
 export function equipmentRollups(
@@ -177,10 +320,10 @@ export function equipmentRollups(
       id: eq.id,
       name: eq.name,
       area: eq.area,
-      is_running: eq.is_running,
       trap_count: eqViews.length,
-      issue_count: eqViews.filter((v) => v.priority === "Issue").length,
-      overdue_count: eqViews.filter((v) => v.priority === "Overdue").length,
+      issue_count: eqViews.filter((v) => v.priority === 'Issue').length,
+      overdue_count: eqViews.filter((v) => v.priority === 'Overdue').length,
+      engineering_review_count: eqViews.filter((v) => v.engineering_review_required).length,
     };
   });
 }

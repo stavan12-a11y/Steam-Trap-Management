@@ -23,11 +23,13 @@ export const PRIORITIES = [
 ] as const;
 export type Priority = (typeof PRIORITIES)[number];
 
+export const MAINTENANCE_ACTIONS = ["Maintenance", "Repair", "Replacement"] as const;
+export type MaintenanceAction = (typeof MAINTENANCE_ACTIONS)[number];
+
 export interface Equipment {
   id: string;
   name: string;
   area: string;
-  is_running: boolean;
 }
 
 export interface Trap {
@@ -49,6 +51,19 @@ export interface PMRecord {
   created_at: string; // ISO timestamp
 }
 
+export interface MaintenanceRecord {
+  id: string;
+  trap_id: string;
+  date: string; // ISO date (YYYY-MM-DD)
+  action: MaintenanceAction;
+  technician: string;
+  description: string;
+  parts_replaced: string;
+  cost: number | null;
+  notes: string;
+  created_at: string;
+}
+
 export interface TrapTypeConfig {
   type: TrapTypeName;
   pm_interval_days: number;
@@ -58,6 +73,7 @@ export interface Database {
   equipment: Equipment[];
   traps: Trap[];
   pm_records: PMRecord[];
+  maintenance_records: MaintenanceRecord[];
   trap_types: TrapTypeConfig[];
 }
 
@@ -68,7 +84,6 @@ export type AppData = Database;
 export interface TrapView extends Trap {
   equipment_name: string;
   equipment_area: string;
-  equipment_running: boolean;
   status: TrapStatus | null;
   issue_type: IssueType | null;
   last_pm_date: string | null;
@@ -76,4 +91,7 @@ export interface TrapView extends Trap {
   days_until_due: number | null;
   priority: Priority;
   pm_interval_days: number;
+  failure_count_36mo: number;
+  engineering_review_required: boolean;
+  engineering_review_reason: string | null;
 }

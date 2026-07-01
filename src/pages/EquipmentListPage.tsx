@@ -4,11 +4,10 @@ import { Plus } from 'lucide-react';
 import { useSteamTrap } from '../store/SteamTrapContext';
 import { equipmentRollups } from '../utils/logic';
 import { Breadcrumbs } from '../components/Breadcrumbs';
-import { RunningBadge } from '../components/Badges';
 import { EquipmentFormModal } from '../components/forms/EquipmentFormModal';
 
 export function EquipmentListPage() {
-  const { data, updateEquipment, deleteEquipment } = useSteamTrap();
+  const { data, deleteEquipment } = useSteamTrap();
   const rollups = useMemo(() => equipmentRollups(data), [data]);
   const [showAdd, setShowAdd] = useState(false);
 
@@ -36,11 +35,10 @@ export function EquipmentListPage() {
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <th className="px-4 py-2.5">Asset</th>
                   <th className="px-4 py-2.5">Area</th>
-                  <th className="px-4 py-2.5">State</th>
                   <th className="px-4 py-2.5 text-right">Traps</th>
                   <th className="px-4 py-2.5 text-right">Issues</th>
                   <th className="px-4 py-2.5 text-right">Overdue</th>
-                  <th className="px-4 py-2.5">Running</th>
+                  <th className="px-4 py-2.5 text-right">Eng. Review</th>
                   <th className="px-4 py-2.5" />
                 </tr>
               </thead>
@@ -53,22 +51,11 @@ export function EquipmentListPage() {
                       </Link>
                     </td>
                     <td className="px-4 py-2.5 text-slate-600">{eq.area}</td>
-                    <td className="px-4 py-2.5">
-                      <RunningBadge running={eq.is_running} />
-                    </td>
                     <td className="px-4 py-2.5 text-right font-mono">{eq.trap_count}</td>
                     <td className="px-4 py-2.5 text-right font-mono text-red-600">{eq.issue_count}</td>
                     <td className="px-4 py-2.5 text-right font-mono text-amber-600">{eq.overdue_count}</td>
-                    <td className="px-4 py-2.5">
-                      <button
-                        type="button"
-                        onClick={() => updateEquipment(eq.id, { is_running: !eq.is_running })}
-                        className={`relative h-5 w-9 rounded-full ${eq.is_running ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                      >
-                        <span
-                          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${eq.is_running ? 'left-4' : 'left-0.5'}`}
-                        />
-                      </button>
+                    <td className="px-4 py-2.5 text-right font-mono text-violet-600">
+                      {eq.engineering_review_count}
                     </td>
                     <td className="px-4 py-2.5">
                       <button

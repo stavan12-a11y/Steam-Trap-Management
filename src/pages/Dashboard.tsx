@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { useSteamTrap } from '../store/SteamTrapContext';
 import { allTrapViews, computeKPIs, equipmentRollups } from '../utils/logic';
 import { KPIGrid } from '../components/KPIGrid';
+import { KPIChartsPanel } from '../components/KPIChartsPanel';
 import { EquipmentCard } from '../components/EquipmentCard';
 import { PriorityQueuePanel } from '../components/PriorityQueuePanel';
 import { EquipmentFormModal } from '../components/forms/EquipmentFormModal';
@@ -27,6 +28,8 @@ export function Dashboard() {
       </div>
 
       <KPIGrid kpis={kpis} equipmentCount={data.equipment.length} />
+
+      <KPIChartsPanel />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <section className="lg:col-span-2">

@@ -45,27 +45,50 @@ export function ReportingPage() {
     downloadCSV(`pm-history-${todayISO()}.csv`, toCSV(headers, rows));
   };
 
+  const exportMaintenance = () => {
+    const headers = [
+      'Date', 'Trap Tag', 'Trap Type', 'Equipment', 'Action', 'Description',
+      'Parts Replaced', 'Technician', 'Cost', 'Notes',
+    ];
+    const eqById = new Map(data.equipment.map((e) => [e.id, e]));
+    const trapById = new Map(data.traps.map((t) => [t.id, t]));
+    const rows: unknown[][] = [];
+    for (const m of [...data.maintenance_records].sort((a, b) => b.date.localeCompare(a.date))) {
+      const trap = trapById.get(m.trap_id);
+      const eq = trap ? eqById.get(trap.equipment_id) : undefined;
+      rows.push([
+        m.date, trap?.tag ?? '', trap?.type ?? '', eq?.name ?? '',
+        m.action, m.description, m.parts_replaced, m.technician,
+        m.cost ?? '', m.notes,
+      ]);
+    }
+    downloadCSV(`maintenance-history-${todayISO()}.csv`, toCSV(headers, rows));
+  };
+
   const exportSnapshot = () => {
     const lines = [
       toCSV(['KPI', 'Value'], [
         ['Total Traps', kpis.total_traps],
         ['Active Issues', kpis.active_issues],
         ['Overdue PM', kpis.overdue_pm],
+        ['Upcoming PM', kpis.upcoming_pm],
         ['Healthy', kpis.healthy],
+        ['Engineering Reviews', kpis.engineering_reviews],
         ['Generated', todayISO()],
       ]),
       '',
       toCSV(
         [
-          'Trap Tag', 'Type', 'Location', 'Equipment', 'Area', 'Equipment Running',
+          'Trap Tag', 'Type', 'Location', 'Equipment', 'Area',
           'Priority', 'Status', 'Issue Type', 'Last PM Date', 'Next PM Date',
-          'Days Until Due', 'PM Interval (days)',
+          'Days Until Due', 'PM Interval (days)', 'Failures (36 mo)', 'Engineering Review',
         ],
         views.map((v) => [
           v.tag, v.type, v.location, v.equipment_name, v.equipment_area,
-          v.equipment_running ? 'Yes' : 'No', v.priority, v.status ?? 'Never inspected',
+          v.priority, v.status ?? 'Never inspected',
           v.issue_type ?? '', v.last_pm_date ?? '', v.next_pm_date ?? '',
           v.days_until_due ?? '', v.pm_interval_days,
+          v.failure_count_36mo, v.engineering_review_required ? 'Yes' : 'No',
         ]),
       ),
     ];
@@ -77,16 +100,24 @@ export function ReportingPage() {
       <Breadcrumbs items={[{ label: 'Reporting' }]} />
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Reporting</h2>
-        <p className="text-sm text-slate-500">Export PM history and current fleet snapshots.</p>
+        <p className="text-sm text-slate-500">Export PM history, maintenance records, and fleet snapshots.</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <div className="card p-5">
           <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">PM History Export</h3>
           <p className="mt-2 text-sm text-slate-500">Full inspection history — one row per PM record.</p>
           <button className="btn-primary mt-4" onClick={exportHistory}>
             <Download className="h-4 w-4" />
             Download PM History (CSV)
+          </button>
+        </div>
+        <div className="card p-5">
+          <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">Maintenance Export</h3>
+          <p className="mt-2 text-sm text-slate-500">Repairs, maintenance, and replacement records.</p>
+          <button className="btn-primary mt-4" onClick={exportMaintenance}>
+            <Download className="h-4 w-4" />
+            Download Maintenance (CSV)
           </button>
         </div>
         <div className="card p-5">

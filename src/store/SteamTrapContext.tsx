@@ -12,6 +12,8 @@ import type {
   AppData,
   Equipment,
   IssueType,
+  MaintenanceAction,
+  MaintenanceRecord,
   PMRecord,
   Trap,
   TrapStatus,
@@ -28,12 +30,24 @@ const STORAGE_KEY = 'steam-trap-data-v1';
 
 export type SyncStatus = 'local' | 'loading' | 'saving' | 'saved' | 'error';
 
+function normalizeData(raw: AppData): AppData {
+  return {
+    equipment: (raw.equipment ?? []).map(({ id, name, area }) => ({ id, name, area })),
+    traps: raw.traps ?? [],
+    pm_records: raw.pm_records ?? [],
+    maintenance_records: raw.maintenance_records ?? [],
+    trap_types: raw.trap_types ?? [],
+  };
+}
+
 function loadData(): AppData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as AppData;
-      if (parsed?.equipment && parsed?.traps && parsed?.pm_records) return parsed;
+      if (parsed?.equipment && parsed?.traps && parsed?.pm_records) {
+        return normalizeData(parsed);
+      }
     }
   } catch {
     // fall through
@@ -67,6 +81,21 @@ interface SteamTrapContextValue {
     },
   ) => { ok: true; record: PMRecord } | { ok: false; error: string };
 
+  addMaintenance: (
+    trapId: string,
+    input: {
+      date?: string;
+      action: MaintenanceAction;
+      technician?: string;
+      description?: string;
+      parts_replaced?: string;
+      cost?: number | null;
+      notes?: string;
+    },
+  ) => MaintenanceRecord;
+
+  deleteMaintenance: (id: string) => void;
+
   updateTrapTypeInterval: (type: TrapTypeName, pm_interval_days: number) => void;
   resetToSeed: () => void;
   clearAll: () => void;
@@ -78,6 +107,7 @@ const EMPTY_DATA: AppData = {
   equipment: [],
   traps: [],
   pm_records: [],
+  maintenance_records: [],
   trap_types: [],
 };
 
@@ -118,7 +148,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
 
       if (!error && row?.data) {
         applyingRemote.current = true;
-        setData(row.data as AppData);
+        setData(normalizeData(row.data as AppData));
       } else if (!error) {
         const seed = structuredClone(seedData);
         await sb.from(STATE_TABLE).upsert({
@@ -142,7 +172,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
           const incoming = (payload.new as { data?: AppData } | null)?.data;
           if (incoming) {
             applyingRemote.current = true;
-            setData(incoming);
+            setData(normalizeData(incoming));
             setSyncStatus('saved');
           }
         },
@@ -205,6 +235,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
         equipment: d.equipment.filter((e) => e.id !== id),
         traps: d.traps.filter((t) => t.equipment_id !== id),
         pm_records: d.pm_records.filter((r) => !trapIds.has(r.trap_id)),
+        maintenance_records: d.maintenance_records.filter((r) => !trapIds.has(r.trap_id)),
         trap_types: d.trap_types,
       };
     });
@@ -221,6 +252,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
       ...d,
       traps: d.traps.filter((t) => t.id !== id),
       pm_records: d.pm_records.filter((r) => r.trap_id !== id),
+      maintenance_records: d.maintenance_records.filter((r) => r.trap_id !== id),
     }));
   }, []);
 
@@ -243,15 +275,6 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
       setData((d) => {
         const trap = d.traps.find((t) => t.id === trapId);
         if (!trap) return d;
-        const equipment = d.equipment.find((e) => e.id === trap.equipment_id);
-        if (!equipment) return d;
-        if (!equipment.is_running) {
-          result = {
-            ok: false,
-            error: `Cannot record PM: ${equipment.name} is currently stopped.`,
-          };
-          return d;
-        }
         if (input.status === 'Issue') {
           const it = input.issue_type;
           if (!it || !ISSUE_TYPES.includes(it)) {
@@ -278,6 +301,47 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
     },
     [],
   );
+
+  const addMaintenance = useCallback(
+    (
+      trapId: string,
+      input: {
+        date?: string;
+        action: MaintenanceAction;
+        technician?: string;
+        description?: string;
+        parts_replaced?: string;
+        cost?: number | null;
+        notes?: string;
+      },
+    ): MaintenanceRecord => {
+      const record: MaintenanceRecord = {
+        id: uid('mnt'),
+        trap_id: trapId,
+        date: (input.date ?? '').trim() || todayISO(),
+        action: input.action,
+        technician: (input.technician ?? '').trim() || 'Unknown',
+        description: (input.description ?? '').trim(),
+        parts_replaced: (input.parts_replaced ?? '').trim(),
+        cost: input.cost ?? null,
+        notes: (input.notes ?? '').trim(),
+        created_at: new Date().toISOString(),
+      };
+      setData((d) => ({
+        ...d,
+        maintenance_records: [...d.maintenance_records, record],
+      }));
+      return record;
+    },
+    [],
+  );
+
+  const deleteMaintenance = useCallback((id: string) => {
+    setData((d) => ({
+      ...d,
+      maintenance_records: d.maintenance_records.filter((r) => r.id !== id),
+    }));
+  }, []);
 
   const updateTrapTypeInterval = useCallback((type: TrapTypeName, pm_interval_days: number) => {
     if (!TRAP_TYPES.includes(type)) return;
@@ -312,6 +376,8 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
       addTrap,
       deleteTrap,
       addPM,
+      addMaintenance,
+      deleteMaintenance,
       updateTrapTypeInterval,
       resetToSeed,
       clearAll,
@@ -328,6 +394,8 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
       addTrap,
       deleteTrap,
       addPM,
+      addMaintenance,
+      deleteMaintenance,
       updateTrapTypeInterval,
       resetToSeed,
       clearAll,

@@ -16,13 +16,11 @@ export function EquipmentFormModal({ open, onClose, equipmentId }: EquipmentForm
 
   const [name, setName] = useState('');
   const [area, setArea] = useState('');
-  const [isRunning, setIsRunning] = useState(true);
 
   useEffect(() => {
     if (!open) return;
     setName(existing?.name ?? '');
     setArea(existing?.area ?? '');
-    setIsRunning(existing?.is_running ?? true);
   }, [open, existing]);
 
   const canSave = name.trim() !== '';
@@ -32,7 +30,6 @@ export function EquipmentFormModal({ open, onClose, equipmentId }: EquipmentForm
     const payload = {
       name: name.trim(),
       area: area.trim() || 'Unassigned',
-      is_running: isRunning,
     };
     if (editing && existing) updateEquipment(existing.id, payload);
     else addEquipment(payload);
@@ -72,15 +69,6 @@ export function EquipmentFormModal({ open, onClose, equipmentId }: EquipmentForm
             placeholder="e.g. Utilities"
           />
         </Field>
-        <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-          <input
-            type="checkbox"
-            checked={isRunning}
-            onChange={(e) => setIsRunning(e.target.checked)}
-            className="rounded border-slate-300"
-          />
-          Equipment is running (PM entry enabled)
-        </label>
       </div>
     </Modal>
   );

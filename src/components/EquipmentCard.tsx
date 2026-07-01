@@ -1,8 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, ChevronRight, Cog, Droplets, MapPin, Pencil, Trash2 } from 'lucide-react';
+import { AlertTriangle, ChevronRight, Cog, Droplets, FlaskConical, MapPin, Pencil, Trash2 } from 'lucide-react';
 import type { EquipmentRollup } from '../utils/logic';
 import { useSteamTrap } from '../store/SteamTrapContext';
-import { RunningBadge } from './Badges';
 
 interface EquipmentCardProps {
   rollup: EquipmentRollup;
@@ -29,7 +28,6 @@ export function EquipmentCard({ rollup, onEdit }: EquipmentCardProps) {
           {rollup.area || '—'}
         </p>
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
-          <RunningBadge running={rollup.is_running} />
           <span className="flex items-center gap-1 text-xs text-slate-500">
             <Droplets className="h-3.5 w-3.5" />
             {rollup.trap_count} traps
@@ -38,6 +36,12 @@ export function EquipmentCard({ rollup, onEdit }: EquipmentCardProps) {
             <span className="flex items-center gap-0.5 text-xs font-semibold text-red-600">
               <AlertTriangle className="h-3.5 w-3.5" />
               {rollup.issue_count}
+            </span>
+          )}
+          {rollup.engineering_review_count > 0 && (
+            <span className="flex items-center gap-0.5 text-xs font-semibold text-violet-600">
+              <FlaskConical className="h-3.5 w-3.5" />
+              {rollup.engineering_review_count} review
             </span>
           )}
         </div>

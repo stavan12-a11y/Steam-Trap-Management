@@ -46,10 +46,25 @@ export function StatusBadge({
   );
 }
 
-export function RunningBadge({ running }: { running: boolean }) {
-  return running ? (
-    <span className={`${BASE} bg-emerald-100 text-emerald-800 ring-emerald-600/20`}>Running</span>
-  ) : (
-    <span className={`${BASE} bg-slate-100 text-slate-600 ring-slate-500/20`}>Stopped</span>
+export function EngineeringReviewBadge({ compact }: { compact?: boolean }) {
+  return (
+    <span className={`${BASE} bg-violet-100 text-violet-800 ring-violet-600/20`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
+      {compact ? 'Eng. Review' : 'Engineering Review'}
+    </span>
+  );
+}
+
+const ACTION_STYLES: Record<string, string> = {
+  Maintenance: 'bg-sky-100 text-sky-800 ring-sky-600/20',
+  Repair: 'bg-amber-100 text-amber-800 ring-amber-600/20',
+  Replacement: 'bg-indigo-100 text-indigo-800 ring-indigo-600/20',
+};
+
+export function MaintenanceActionBadge({ action }: { action: string }) {
+  return (
+    <span className={`${BASE} ${ACTION_STYLES[action] ?? 'bg-slate-100 text-slate-600 ring-slate-500/20'}`}>
+      {action}
+    </span>
   );
 }

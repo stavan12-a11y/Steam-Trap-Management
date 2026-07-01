@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Clock, Droplets, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, Droplets, FlaskConical, type LucideIcon } from 'lucide-react';
 import type { KPIs } from '../utils/logic';
 
 interface KPICardProps {
@@ -27,7 +27,7 @@ function KPICard({ label, value, icon: Icon, accent, iconBg, hint }: KPICardProp
 
 export function KPIGrid({ kpis, equipmentCount }: { kpis: KPIs; equipmentCount: number }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
       <KPICard
         label="Total Traps"
         value={kpis.total_traps}
@@ -51,6 +51,14 @@ export function KPIGrid({ kpis, equipmentCount }: { kpis: KPIs; equipmentCount: 
         iconBg="bg-amber-50"
       />
       <KPICard
+        label="Upcoming PM"
+        value={kpis.upcoming_pm}
+        icon={Clock}
+        accent="text-sky-600"
+        iconBg="bg-sky-50"
+        hint="Due within 14 days"
+      />
+      <KPICard
         label="Healthy"
         value={kpis.healthy}
         icon={CheckCircle2}
@@ -61,6 +69,14 @@ export function KPIGrid({ kpis, equipmentCount }: { kpis: KPIs; equipmentCount: 
             ? `${Math.round((kpis.healthy / kpis.total_traps) * 100)}% of fleet`
             : undefined
         }
+      />
+      <KPICard
+        label="Eng. Review"
+        value={kpis.engineering_reviews}
+        icon={FlaskConical}
+        accent="text-violet-600"
+        iconBg="bg-violet-50"
+        hint="3+ failures / 36 mo"
       />
     </div>
   );
