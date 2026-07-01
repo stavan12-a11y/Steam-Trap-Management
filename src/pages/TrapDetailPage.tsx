@@ -1,16 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, ClipboardCheck, FlaskConical, Plus, Wrench } from 'lucide-react';
+import { AlertTriangle, ClipboardCheck, Plus, Wrench } from 'lucide-react';
 import { useSteamTrap } from '../store/SteamTrapContext';
 import { buildTrapView, maintenanceForTrap, recordsForTrap } from '../utils/logic';
 import { dueLabel } from '../utils/format';
 import { Breadcrumbs } from '../components/Breadcrumbs';
-import {
-  EngineeringReviewBadge,
-  MaintenanceActionBadge,
-  PriorityBadge,
-  StatusBadge,
-} from '../components/Badges';
+import { MaintenanceActionBadge, PriorityBadge, StatusBadge } from '../components/Badges';
+import { TrapAlertBadges, TrapAlertBanner } from '../components/TrapAlerts';
 import { PMFormModal } from '../components/forms/PMFormModal';
 import { MaintenanceFormModal } from '../components/forms/MaintenanceFormModal';
 
@@ -51,7 +47,7 @@ export function TrapDetailPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <PriorityBadge priority={view.priority} />
-          {view.engineering_review_required && <EngineeringReviewBadge />}
+          <TrapAlertBadges alerts={view.alerts} />
           <button className="btn-primary" onClick={() => setPmOpen(true)}>
             <ClipboardCheck className="h-4 w-4" />
             Record PM
@@ -74,19 +70,9 @@ export function TrapDetailPage() {
         </div>
       </div>
 
-      {view.engineering_review_required && (
-        <div className="flex items-start gap-3 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">
-          <FlaskConical className="mt-0.5 h-5 w-5 shrink-0" />
-          <div>
-            <p className="font-semibold">Engineering review recommended</p>
-            <p className="mt-0.5">{view.engineering_review_reason}</p>
-            <p className="mt-1 text-xs text-violet-700">
-              This trap has failed {view.failure_count_36mo} times in the last 36 months. Consider
-              root-cause analysis, trap sizing review, or replacement.
-            </p>
-          </div>
-        </div>
-      )}
+      {view.alerts.map((alert) => (
+        <TrapAlertBanner key={alert.type} alert={alert} />
+      ))}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="card p-5">
@@ -221,7 +207,7 @@ export function TrapDetailPage() {
         )}
       </div>
 
-      {view.priority === 'Issue' && !view.engineering_review_required && (
+      {view.priority === 'Issue' && view.alert_count === 0 && (
         <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
           <p>

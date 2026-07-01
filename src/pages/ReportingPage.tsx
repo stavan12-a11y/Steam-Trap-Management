@@ -24,7 +24,7 @@ function downloadCSV(filename: string, csv: string) {
 export function ReportingPage() {
   const { data } = useSteamTrap();
   const views = useMemo(() => sortByPriority(allTrapViews(data)), [data]);
-  const kpis = useMemo(() => computeKPIs(views), [views]);
+  const kpis = useMemo(() => computeKPIs(views, data), [views, data]);
 
   const exportHistory = () => {
     const headers = [
@@ -72,7 +72,14 @@ export function ReportingPage() {
         ['Active Issues', kpis.active_issues],
         ['Overdue PM', kpis.overdue_pm],
         ['Upcoming PM', kpis.upcoming_pm],
+        ['Never Inspected', kpis.never_inspected],
         ['Healthy', kpis.healthy],
+        ['PM Compliance %', kpis.pm_compliance_rate],
+        ['Fleet Reliability %', kpis.fleet_reliability_rate],
+        ['Inspections (90d)', kpis.inspections_90d],
+        ['Avg Days Since PM', kpis.avg_days_since_pm ?? ''],
+        ['Smart Alerts', kpis.smart_alerts],
+        ['Repeat Failures', kpis.repeat_failures],
         ['Engineering Reviews', kpis.engineering_reviews],
         ['Generated', todayISO()],
       ]),
@@ -81,14 +88,15 @@ export function ReportingPage() {
         [
           'Trap Tag', 'Type', 'Location', 'Equipment', 'Area',
           'Priority', 'Status', 'Issue Type', 'Last PM Date', 'Next PM Date',
-          'Days Until Due', 'PM Interval (days)', 'Failures (36 mo)', 'Engineering Review',
+          'Days Until Due', 'PM Interval (days)', 'Failures (36 mo)', 'Smart Alerts',
         ],
         views.map((v) => [
           v.tag, v.type, v.location, v.equipment_name, v.equipment_area,
           v.priority, v.status ?? 'Never inspected',
           v.issue_type ?? '', v.last_pm_date ?? '', v.next_pm_date ?? '',
           v.days_until_due ?? '', v.pm_interval_days,
-          v.failure_count_36mo, v.engineering_review_required ? 'Yes' : 'No',
+          v.failure_count_36mo,
+          v.alerts.map((a) => a.label).join('; ') || 'None',
         ]),
       ),
     ];

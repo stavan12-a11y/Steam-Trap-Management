@@ -5,10 +5,11 @@ import { useSteamTrap } from '../store/SteamTrapContext';
 import { allTrapViews, sortByPriority } from '../utils/logic';
 import { dueLabel } from '../utils/format';
 import { Breadcrumbs } from '../components/Breadcrumbs';
-import { EngineeringReviewBadge, PriorityBadge, StatusBadge } from '../components/Badges';
+import { PriorityBadge, StatusBadge } from '../components/Badges';
+import { TrapAlertBadges } from '../components/TrapAlerts';
 import { TrapFormModal } from '../components/forms/TrapFormModal';
 
-type Filter = 'All' | 'Issues' | 'Overdue' | 'Upcoming' | 'Healthy' | 'Eng. Review';
+type Filter = 'All' | 'Issues' | 'Overdue' | 'Upcoming' | 'Healthy' | 'Smart Alerts';
 
 const FILTERS: { key: Filter; match: (v: ReturnType<typeof allTrapViews>[number]) => boolean }[] = [
   { key: 'All', match: () => true },
@@ -16,7 +17,7 @@ const FILTERS: { key: Filter; match: (v: ReturnType<typeof allTrapViews>[number]
   { key: 'Overdue', match: (v) => v.priority === 'Overdue' },
   { key: 'Upcoming', match: (v) => v.priority === 'Upcoming' },
   { key: 'Healthy', match: (v) => v.priority === 'Healthy' },
-  { key: 'Eng. Review', match: (v) => v.engineering_review_required },
+  { key: 'Smart Alerts', match: (v) => v.alert_count > 0 },
 ];
 
 export function TrapsPage() {
@@ -33,14 +34,14 @@ export function TrapsPage() {
       Overdue: 0,
       Upcoming: 0,
       Healthy: 0,
-      'Eng. Review': 0,
+      'Smart Alerts': 0,
     };
     for (const t of traps) {
       if (t.priority === 'Issue') c.Issues++;
       else if (t.priority === 'Overdue') c.Overdue++;
       else if (t.priority === 'Upcoming') c.Upcoming++;
       else if (t.priority === 'Healthy') c.Healthy++;
-      if (t.engineering_review_required) c['Eng. Review']++;
+      if (t.alert_count > 0) c['Smart Alerts']++;
     }
     return c;
   }, [traps]);
@@ -121,9 +122,9 @@ export function TrapsPage() {
                     <Link to={`/traps/${t.id}`} className="font-mono font-semibold text-maroon-800 hover:underline">
                       {t.tag}
                     </Link>
-                    {t.engineering_review_required && (
+                    {t.alert_count > 0 && (
                       <span className="ml-2">
-                        <EngineeringReviewBadge compact />
+                        <TrapAlertBadges alerts={t.alerts} compact />
                       </span>
                     )}
                   </td>

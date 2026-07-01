@@ -17,6 +17,7 @@ import {
 import { useSteamTrap } from '../store/SteamTrapContext';
 import {
   activeIssuesByType,
+  alertBreakdown,
   allTrapViews,
   issuesByArea,
   pmActivityByMonth,
@@ -48,6 +49,7 @@ export function KPIChartsPanel() {
   const issueTypes = useMemo(() => activeIssuesByType(views), [views]);
   const pmTrend = useMemo(() => pmActivityByMonth(data), [data]);
   const areaIssues = useMemo(() => issuesByArea(views).filter((a) => a.issues > 0), [views]);
+  const alertCounts = useMemo(() => alertBreakdown(views), [views]);
 
   return (
     <section className="space-y-3">
@@ -132,6 +134,25 @@ export function KPIChartsPanel() {
                 <YAxis allowDecimals={false} tick={{ fontSize: 11 }} width={28} />
                 <Tooltip />
                 <Bar dataKey="issues" fill="#d97706" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </ChartCard>
+        <ChartCard title="Smart Alerts" subtitle="Triggered analysis rules across the fleet">
+          {alertCounts.length === 0 ? (
+            <EmptyChart message="No smart alerts triggered" />
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={alertCounts} layout="vertical" margin={{ left: 8, right: 16 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                <YAxis type="category" dataKey="label" width={100} tick={{ fontSize: 10 }} />
+                <Tooltip />
+                <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                  {alertCounts.map((entry) => (
+                    <Cell key={entry.type} fill={entry.color} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           )}

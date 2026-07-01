@@ -38,7 +38,7 @@ export function EquipmentListPage() {
                   <th className="px-4 py-2.5 text-right">Traps</th>
                   <th className="px-4 py-2.5 text-right">Issues</th>
                   <th className="px-4 py-2.5 text-right">Overdue</th>
-                  <th className="px-4 py-2.5 text-right">Eng. Review</th>
+                  <th className="px-4 py-2.5 text-right">Smart Alerts</th>
                   <th className="px-4 py-2.5" />
                 </tr>
               </thead>
@@ -54,8 +54,8 @@ export function EquipmentListPage() {
                     <td className="px-4 py-2.5 text-right font-mono">{eq.trap_count}</td>
                     <td className="px-4 py-2.5 text-right font-mono text-red-600">{eq.issue_count}</td>
                     <td className="px-4 py-2.5 text-right font-mono text-amber-600">{eq.overdue_count}</td>
-                    <td className="px-4 py-2.5 text-right font-mono text-violet-600">
-                      {eq.engineering_review_count}
+                    <td className="px-4 py-2.5 text-right font-mono text-orange-600">
+                      {eq.smart_alert_count}
                     </td>
                     <td className="px-4 py-2.5">
                       <button

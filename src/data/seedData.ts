@@ -166,6 +166,30 @@ export function buildSeedDatabase(): Database {
       notes: "Downstream line was cold. Trap cycling normally after cleaning.",
       created_at: ts(150),
     },
+    {
+      id: "mnt-0004",
+      trap_id: "tr-0004",
+      date: daysAgo(20),
+      action: "Replacement",
+      technician: "S. Patel",
+      description: "Full trap replacement — worn disc",
+      parts_replaced: "Thermodynamic trap assembly",
+      cost: 420,
+      notes: "Replaced due to rapid cycling. Re-tested OK at install.",
+      created_at: ts(20),
+    },
+    {
+      id: "mnt-0005",
+      trap_id: "tr-0008",
+      date: daysAgo(85),
+      action: "Repair",
+      technician: "J. Okafor",
+      description: "Re-torqued body bolts, replaced gasket",
+      parts_replaced: "Gasket set",
+      cost: 65,
+      notes: "Addressed external leak at gasket joint.",
+      created_at: ts(85),
+    },
   ];
 
   return {

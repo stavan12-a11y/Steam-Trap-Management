@@ -6,6 +6,7 @@ import type {
   PMRecord,
   Priority,
   Trap,
+  TrapAlert,
   TrapView,
 } from '../types';
 import { PRIORITIES } from '../types';
@@ -13,6 +14,10 @@ import { PRIORITIES } from '../types';
 export const UPCOMING_WINDOW_DAYS = 14;
 export const ENGINEERING_REVIEW_FAILURE_THRESHOLD = 3;
 export const ENGINEERING_REVIEW_WINDOW_MONTHS = 36;
+export const REPEAT_FAILURE_THRESHOLD = 2;
+export const REPEAT_FAILURE_WINDOW_MONTHS = 12;
+export const POST_REPLACEMENT_WINDOW_DAYS = 90;
+export const FAILURE_AFTER_REPAIR_WINDOW_DAYS = 30;
 
 /** Today as a UTC date string (YYYY-MM-DD). */
 export function todayISO(): string {
@@ -117,6 +122,154 @@ export function evaluateEngineeringReview(
   return { required: false, reason: null, failure_count_36mo };
 }
 
+/** Same issue type recorded 2+ times within 12 months. */
+export function evaluateRepeatFailure(
+  records: PMRecord[],
+  today = todayISO(),
+): { triggered: boolean; issueType: IssueType | null; count: number; reason: string | null } {
+  const windowStart = monthsAgoISO(REPEAT_FAILURE_WINDOW_MONTHS, today);
+  const issues = records.filter(
+    (r) => r.status === 'Issue' && r.issue_type && r.date >= windowStart && r.date <= today,
+  );
+
+  const byType = new Map<IssueType, number>();
+  for (const r of issues) {
+    if (!r.issue_type) continue;
+    byType.set(r.issue_type, (byType.get(r.issue_type) ?? 0) + 1);
+  }
+
+  let worst: { type: IssueType; count: number } | null = null;
+  for (const [type, count] of byType) {
+    if (count >= REPEAT_FAILURE_THRESHOLD && (!worst || count > worst.count)) {
+      worst = { type, count };
+    }
+  }
+
+  if (!worst) {
+    return { triggered: false, issueType: null, count: 0, reason: null };
+  }
+
+  return {
+    triggered: true,
+    issueType: worst.type,
+    count: worst.count,
+    reason: `${worst.type} recorded ${worst.count} times in ${REPEAT_FAILURE_WINDOW_MONTHS} months — possible sizing or root-cause issue`,
+  };
+}
+
+/** Active issue within 90 days of a trap replacement. */
+export function evaluatePostReplacementFailure(
+  records: PMRecord[],
+  maintenance: MaintenanceRecord[],
+): { triggered: boolean; reason: string | null } {
+  const latest = latestRecord(records);
+  if (!latest || latest.status !== 'Issue') {
+    return { triggered: false, reason: null };
+  }
+
+  const replacements = maintenance
+    .filter((m) => m.action === 'Replacement' && m.date <= latest.date)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+
+  const recent = replacements.find(
+    (m) => daysBetween(m.date, latest.date) <= POST_REPLACEMENT_WINDOW_DAYS,
+  );
+
+  if (!recent) return { triggered: false, reason: null };
+
+  const days = daysBetween(recent.date, latest.date);
+  return {
+    triggered: true,
+    reason: `Issue found ${days} days after replacement on ${recent.date} — review installation or warranty`,
+  };
+}
+
+/** Active issue within 30 days of a repair. */
+export function evaluateFailureAfterRepair(
+  records: PMRecord[],
+  maintenance: MaintenanceRecord[],
+): { triggered: boolean; reason: string | null } {
+  const latest = latestRecord(records);
+  if (!latest || latest.status !== 'Issue') {
+    return { triggered: false, reason: null };
+  }
+
+  const repairs = maintenance
+    .filter((m) => m.action === 'Repair' && m.date <= latest.date)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+
+  const recent = repairs.find(
+    (m) => daysBetween(m.date, latest.date) <= FAILURE_AFTER_REPAIR_WINDOW_DAYS,
+  );
+
+  if (!recent) return { triggered: false, reason: null };
+
+  const days = daysBetween(recent.date, latest.date);
+  return {
+    triggered: true,
+    reason: `Issue found ${days} days after repair on ${recent.date} — verify repair quality`,
+  };
+}
+
+/** Build all smart alerts for a trap. */
+export function buildTrapAlerts(
+  records: PMRecord[],
+  maintenance: MaintenanceRecord[],
+  today = todayISO(),
+): TrapAlert[] {
+  const alerts: TrapAlert[] = [];
+
+  const eng = evaluateEngineeringReview(records, today);
+  if (eng.required && eng.reason) {
+    alerts.push({
+      type: 'engineering_review',
+      label: 'Engineering Review',
+      message: eng.reason,
+      severity: 'high',
+    });
+  }
+
+  const repeat = evaluateRepeatFailure(records, today);
+  if (repeat.triggered && repeat.reason) {
+    alerts.push({
+      type: 'repeat_failure',
+      label: 'Repeat Failure',
+      message: repeat.reason,
+      severity: 'high',
+    });
+  }
+
+  const postReplace = evaluatePostReplacementFailure(records, maintenance);
+  if (postReplace.triggered && postReplace.reason) {
+    alerts.push({
+      type: 'post_replacement_failure',
+      label: 'Post-Replacement Issue',
+      message: postReplace.reason,
+      severity: 'high',
+    });
+  }
+
+  const afterRepair = evaluateFailureAfterRepair(records, maintenance);
+  if (afterRepair.triggered && afterRepair.reason) {
+    alerts.push({
+      type: 'failure_after_repair',
+      label: 'Failure After Repair',
+      message: afterRepair.reason,
+      severity: 'medium',
+    });
+  }
+
+  return alerts;
+}
+
+export function hasTrapAlerts(view: TrapView): boolean {
+  return view.alert_count > 0;
+}
+
+export function trapHasAlert(view: TrapView, type: TrapAlert['type']): boolean {
+  return view.alerts.some((a) => a.type === type);
+}
+
 /**
  * Derives the full current-state view of a trap, including computed priority.
  * Priority precedence: Issue → Overdue → Upcoming → Never inspected → Healthy.
@@ -128,9 +281,11 @@ export function buildTrapView(
   today = todayISO(),
 ): TrapView {
   const records = db.pm_records.filter((r) => r.trap_id === trap.id);
+  const maintenance = maintenanceForTrap(db, trap.id);
   const latest = latestRecord(records);
   const interval = intervalForType(db, trap.type);
   const review = evaluateEngineeringReview(records, today);
+  const alerts = buildTrapAlerts(records, maintenance, today);
 
   const last_pm_date = latest ? latest.date : null;
   const status = latest ? latest.status : null;
@@ -166,6 +321,8 @@ export function buildTrapView(
     failure_count_36mo: review.failure_count_36mo,
     engineering_review_required: review.required,
     engineering_review_reason: review.reason,
+    alerts,
+    alert_count: alerts.length,
   };
 }
 
@@ -200,18 +357,92 @@ export interface KPIs {
   engineering_reviews: number;
   never_inspected: number;
   upcoming_pm: number;
+  repeat_failures: number;
+  smart_alerts: number;
+  pm_compliance_rate: number;
+  fleet_reliability_rate: number;
+  inspections_90d: number;
+  avg_days_since_pm: number | null;
 }
 
-export function computeKPIs(views: TrapView[]): KPIs {
+export function computeKPIs(
+  views: TrapView[],
+  db: Database,
+  today = todayISO(),
+): KPIs {
+  const total = views.length;
+  const active_issues = views.filter((v) => v.priority === 'Issue').length;
+  const pm_compliant = views.filter(
+    (v) => v.priority !== 'Overdue' && v.priority !== 'Never inspected',
+  ).length;
+
+  const window90 = addDays(today, -90);
+  const inspections_90d = db.pm_records.filter(
+    (r) => r.date >= window90 && r.date <= today,
+  ).length;
+
+  const withPm = views.filter((v) => v.last_pm_date);
+  const avg_days_since_pm =
+    withPm.length > 0
+      ? Math.round(
+          withPm.reduce((sum, v) => sum + daysBetween(v.last_pm_date!, today), 0) / withPm.length,
+        )
+      : null;
+
   return {
-    total_traps: views.length,
-    active_issues: views.filter((v) => v.priority === 'Issue').length,
+    total_traps: total,
+    active_issues,
     overdue_pm: views.filter((v) => v.priority === 'Overdue').length,
     healthy: views.filter((v) => v.priority === 'Healthy').length,
     engineering_reviews: views.filter((v) => v.engineering_review_required).length,
     never_inspected: views.filter((v) => v.priority === 'Never inspected').length,
     upcoming_pm: views.filter((v) => v.priority === 'Upcoming').length,
+    repeat_failures: views.filter((v) => trapHasAlert(v, 'repeat_failure')).length,
+    smart_alerts: views.filter((v) => v.alert_count > 0).length,
+    pm_compliance_rate: total > 0 ? Math.round((pm_compliant / total) * 100) : 100,
+    fleet_reliability_rate: total > 0 ? Math.round(((total - active_issues) / total) * 100) : 100,
+    inspections_90d,
+    avg_days_since_pm,
   };
+}
+
+export interface AlertTypeCount {
+  type: TrapAlert['type'];
+  label: string;
+  count: number;
+  color: string;
+}
+
+/** Fleet-wide count of each smart alert type. */
+export function alertBreakdown(views: TrapView[]): AlertTypeCount[] {
+  const labels: Record<TrapAlert['type'], string> = {
+    engineering_review: 'Engineering Review',
+    repeat_failure: 'Repeat Failure',
+    post_replacement_failure: 'Post-Replacement',
+    failure_after_repair: 'After Repair',
+  };
+  const colors: Record<TrapAlert['type'], string> = {
+    engineering_review: '#7c3aed',
+    repeat_failure: '#c2410c',
+    post_replacement_failure: '#be123c',
+    failure_after_repair: '#ca8a04',
+  };
+
+  const counts = new Map<TrapAlert['type'], number>();
+  for (const v of views) {
+    for (const a of v.alerts) {
+      counts.set(a.type, (counts.get(a.type) ?? 0) + 1);
+    }
+  }
+
+  return [...counts.entries()]
+    .map(([type, count]) => ({
+      type,
+      label: labels[type],
+      count,
+      color: colors[type],
+    }))
+    .sort((a, b) => b.count - a.count);
 }
 
 export interface PriorityBreakdown {
@@ -307,6 +538,7 @@ export interface EquipmentRollup {
   issue_count: number;
   overdue_count: number;
   engineering_review_count: number;
+  smart_alert_count: number;
 }
 
 export function equipmentRollups(
@@ -324,6 +556,7 @@ export function equipmentRollups(
       issue_count: eqViews.filter((v) => v.priority === 'Issue').length,
       overdue_count: eqViews.filter((v) => v.priority === 'Overdue').length,
       engineering_review_count: eqViews.filter((v) => v.engineering_review_required).length,
+      smart_alert_count: eqViews.filter((v) => v.alert_count > 0).length,
     };
   });
 }

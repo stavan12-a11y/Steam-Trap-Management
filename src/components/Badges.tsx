@@ -46,15 +46,6 @@ export function StatusBadge({
   );
 }
 
-export function EngineeringReviewBadge({ compact }: { compact?: boolean }) {
-  return (
-    <span className={`${BASE} bg-violet-100 text-violet-800 ring-violet-600/20`}>
-      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
-      {compact ? 'Eng. Review' : 'Engineering Review'}
-    </span>
-  );
-}
-
 const ACTION_STYLES: Record<string, string> = {
   Maintenance: 'bg-sky-100 text-sky-800 ring-sky-600/20',
   Repair: 'bg-amber-100 text-amber-800 ring-amber-600/20',

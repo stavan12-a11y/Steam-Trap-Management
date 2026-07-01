@@ -13,7 +13,7 @@ export function Dashboard() {
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
 
-  const kpis = useMemo(() => computeKPIs(allTrapViews(data)), [data]);
+  const kpis = useMemo(() => computeKPIs(allTrapViews(data), data), [data]);
   const rollups = useMemo(() => equipmentRollups(data), [data]);
 
   return (

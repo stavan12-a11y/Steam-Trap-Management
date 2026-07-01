@@ -38,10 +38,10 @@ export function EquipmentCard({ rollup, onEdit }: EquipmentCardProps) {
               {rollup.issue_count}
             </span>
           )}
-          {rollup.engineering_review_count > 0 && (
-            <span className="flex items-center gap-0.5 text-xs font-semibold text-violet-600">
+          {rollup.smart_alert_count > 0 && (
+            <span className="flex items-center gap-0.5 text-xs font-semibold text-orange-600">
               <FlaskConical className="h-3.5 w-3.5" />
-              {rollup.engineering_review_count} review
+              {rollup.smart_alert_count} alert{rollup.smart_alert_count !== 1 ? 's' : ''}
             </span>
           )}
         </div>

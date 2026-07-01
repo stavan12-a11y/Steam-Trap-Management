@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { useSteamTrap } from '../store/SteamTrapContext';
 import { allTrapViews, sortByPriority } from '../utils/logic';
 import { dueLabel } from '../utils/format';
-import { EngineeringReviewBadge, PriorityBadge } from './Badges';
+import { PriorityBadge } from './Badges';
+import { TrapAlertBadges } from './TrapAlerts';
 
 export function PriorityQueuePanel() {
   const { data } = useSteamTrap();
@@ -11,17 +12,15 @@ export function PriorityQueuePanel() {
   const queue = useMemo(() => {
     const views = sortByPriority(allTrapViews(data));
     const urgent = views.filter((v) => v.priority !== 'Healthy');
-    const engReview = views.filter(
-      (v) => v.engineering_review_required && v.priority === 'Healthy',
-    );
-    return [...urgent, ...engReview].slice(0, 10);
+    const alertOnly = views.filter((v) => v.priority === 'Healthy' && v.alert_count > 0);
+    return [...urgent, ...alertOnly].slice(0, 10);
   }, [data]);
 
   return (
     <div className="card flex h-full min-h-[480px] flex-col overflow-hidden">
       <div className="border-b border-slate-200 px-4 py-3">
         <h3 className="text-sm font-bold text-slate-900">Priority Action Queue</h3>
-        <p className="text-xs text-slate-500">Top 10 · issues, overdue PM, engineering review</p>
+        <p className="text-xs text-slate-500">Top 10 · issues, overdue PM, smart alerts</p>
       </div>
       <div className="flex-1 overflow-y-auto">
         {queue.length === 0 ? (
@@ -39,7 +38,7 @@ export function PriorityQueuePanel() {
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono text-sm font-bold text-maroon-800">{v.tag}</span>
                     <div className="flex flex-wrap items-center justify-end gap-1">
-                      {v.engineering_review_required && <EngineeringReviewBadge compact />}
+                      <TrapAlertBadges alerts={v.alerts} compact />
                       <PriorityBadge priority={v.priority} />
                     </div>
                   </div>

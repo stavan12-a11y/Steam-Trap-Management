@@ -5,7 +5,8 @@ import { useSteamTrap } from '../store/SteamTrapContext';
 import { allTrapViews, sortByPriority } from '../utils/logic';
 import { dueLabel } from '../utils/format';
 import { Breadcrumbs } from '../components/Breadcrumbs';
-import { EngineeringReviewBadge, PriorityBadge, StatusBadge } from '../components/Badges';
+import { PriorityBadge, StatusBadge } from '../components/Badges';
+import { TrapAlertBadges } from '../components/TrapAlerts';
 import { TrapFormModal } from '../components/forms/TrapFormModal';
 
 export function EquipmentPage() {
@@ -33,6 +34,7 @@ export function EquipmentPage() {
   const issues = traps.filter((t) => t.priority === 'Issue').length;
   const overdue = traps.filter((t) => t.priority === 'Overdue').length;
   const engReviews = traps.filter((t) => t.engineering_review_required).length;
+  const smartAlerts = traps.filter((t) => t.alert_count > 0).length;
 
   return (
     <div className="space-y-6">
@@ -51,12 +53,13 @@ export function EquipmentPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {[
           { label: 'Traps', value: traps.length },
           { label: 'Issues', value: issues, cls: issues ? 'text-red-600' : '' },
           { label: 'Overdue', value: overdue, cls: overdue ? 'text-amber-600' : '' },
           { label: 'Eng. Review', value: engReviews, cls: engReviews ? 'text-violet-600' : '' },
+          { label: 'Smart Alerts', value: smartAlerts, cls: smartAlerts ? 'text-orange-600' : '' },
         ].map((s) => (
           <div key={s.label} className="card p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{s.label}</p>
@@ -92,9 +95,9 @@ export function EquipmentPage() {
                       <Link to={`/traps/${v.id}`} className="font-mono font-semibold text-maroon-800 hover:underline">
                         {v.tag}
                       </Link>
-                      {v.engineering_review_required && (
+                      {v.alert_count > 0 && (
                         <span className="ml-2">
-                          <EngineeringReviewBadge compact />
+                          <TrapAlertBadges alerts={v.alerts} compact />
                         </span>
                       )}
                     </td>

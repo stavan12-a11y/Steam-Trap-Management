@@ -26,6 +26,21 @@ export type Priority = (typeof PRIORITIES)[number];
 export const MAINTENANCE_ACTIONS = ["Maintenance", "Repair", "Replacement"] as const;
 export type MaintenanceAction = (typeof MAINTENANCE_ACTIONS)[number];
 
+export const TRAP_ALERT_TYPES = [
+  'engineering_review',
+  'repeat_failure',
+  'post_replacement_failure',
+  'failure_after_repair',
+] as const;
+export type TrapAlertType = (typeof TRAP_ALERT_TYPES)[number];
+
+export interface TrapAlert {
+  type: TrapAlertType;
+  label: string;
+  message: string;
+  severity: 'high' | 'medium';
+}
+
 export interface Equipment {
   id: string;
   name: string;
@@ -94,4 +109,6 @@ export interface TrapView extends Trap {
   failure_count_36mo: number;
   engineering_review_required: boolean;
   engineering_review_reason: string | null;
+  alerts: TrapAlert[];
+  alert_count: number;
 }
