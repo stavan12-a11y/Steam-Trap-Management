@@ -1,15 +1,34 @@
-import type { Database } from '../types';
+import type { Database, Trap, TrapTypeName } from '../types';
+import { DEFAULT_TRAP_DATASHEET } from '../types';
 
-export const DATA_VERSION = 3;
+export const DATA_VERSION = 4;
 
-/** Default PM intervals per trap type (days). */
-export const DEFAULT_TRAP_TYPES: Database["trap_types"] = [
-  { type: "Float & Thermostatic", pm_interval_days: 180 },
-  { type: "Inverted Bucket", pm_interval_days: 365 },
-  { type: "Thermodynamic", pm_interval_days: 120 },
-  { type: "Thermostatic", pm_interval_days: 270 },
-  { type: "Bimetallic", pm_interval_days: 365 },
-];
+const DATASHEET: Record<string, Partial<Trap>> = {
+  'ST-0001': { manufacturer: 'Spirax Sarco', model: 'IB-15', connection_type: 'Flanged', trap_size: '1"', serial_number: 'SS-2019-4412', install_date: '2019-03-15' },
+  'ST-0002': { manufacturer: 'TLV', model: 'A3N', connection_type: 'NPT Threaded', trap_size: '3/4"', serial_number: 'TLV-8821', install_date: '2020-06-01' },
+  'ST-0005': { manufacturer: 'Armstrong', model: 'CD-33S', connection_type: 'NPT Threaded', trap_size: '1/2"', serial_number: 'ARM-5520', install_date: '2021-01-10' },
+  'ST-0016': { manufacturer: 'Spirax Sarco', model: 'FT-14', connection_type: 'Flanged', trap_size: '3/4"', serial_number: 'SS-2022-1098', install_date: '2022-04-20' },
+  'ST-0025': { manufacturer: 'Armstrong', model: 'IB-1210', connection_type: 'Flanged', trap_size: '2"', serial_number: 'ARM-3310', install_date: '2018-11-05' },
+  'ST-0030': { manufacturer: 'TLV', model: 'A3N', connection_type: 'Socket Weld', trap_size: '1/2"', serial_number: 'TLV-9902', install_date: '2020-09-12' },
+};
+
+function trap(
+  id: string,
+  tag: string,
+  type: TrapTypeName,
+  location: string,
+  equipment_id: string,
+): Trap {
+  return {
+    id,
+    tag,
+    type,
+    location,
+    equipment_id,
+    ...DEFAULT_TRAP_DATASHEET,
+    ...DATASHEET[tag],
+  };
+}
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -42,53 +61,44 @@ export function buildSeedDatabase(): Database {
   ];
 
   const traps: Database["traps"] = [
-    // Boiler 1
-    { id: "tr-0001", tag: "ST-0001", type: "Inverted Bucket", location: "Boiler 1 — Blowdown line", equipment_id: "eq-boiler-1" },
-    { id: "tr-0002", tag: "ST-0002", type: "Thermodynamic", location: "Boiler 1 — Steam drum drip", equipment_id: "eq-boiler-1" },
-    { id: "tr-0003", tag: "ST-0003", type: "Float & Thermostatic", location: "Boiler 1 — Economizer drain", equipment_id: "eq-boiler-1" },
-    { id: "tr-0004", tag: "ST-0004", type: "Thermodynamic", location: "Boiler 1 — Feedwater preheat drip", equipment_id: "eq-boiler-1" },
-    // Boiler 2
-    { id: "tr-0005", tag: "ST-0005", type: "Thermodynamic", location: "Boiler 2 — Steam drum drip", equipment_id: "eq-boiler-2" },
-    { id: "tr-0006", tag: "ST-0006", type: "Bimetallic", location: "Boiler 2 — Superheater drain", equipment_id: "eq-boiler-2" },
-    { id: "tr-0007", tag: "ST-0007", type: "Inverted Bucket", location: "Boiler 2 — Attemperator drain", equipment_id: "eq-boiler-2" },
-    { id: "tr-0008", tag: "ST-0008", type: "Float & Thermostatic", location: "Boiler 2 — Sample cooler drain", equipment_id: "eq-boiler-2" },
-    // Deaerator
-    { id: "tr-0009", tag: "ST-0009", type: "Float & Thermostatic", location: "Deaerator — Vent condenser", equipment_id: "eq-deaerator" },
-    { id: "tr-0010", tag: "ST-0010", type: "Thermostatic", location: "Deaerator — Storage tank drip", equipment_id: "eq-deaerator" },
-    { id: "tr-0011", tag: "ST-0011", type: "Thermodynamic", location: "Deaerator — Pegging steam line", equipment_id: "eq-deaerator" },
-    // Turbine Building
-    { id: "tr-0012", tag: "ST-0012", type: "Thermodynamic", location: "Turbine — Extraction line drip", equipment_id: "eq-turbine" },
-    { id: "tr-0013", tag: "ST-0013", type: "Inverted Bucket", location: "Turbine — Gland seal condenser", equipment_id: "eq-turbine" },
-    { id: "tr-0014", tag: "ST-0014", type: "Float & Thermostatic", location: "Turbine — Lube oil heater drain", equipment_id: "eq-turbine" },
-    { id: "tr-0015", tag: "ST-0015", type: "Bimetallic", location: "Turbine — Casing drain pot", equipment_id: "eq-turbine" },
-    // Crude Preheat
-    { id: "tr-0016", tag: "ST-0016", type: "Float & Thermostatic", location: "Crude Preheat — E-101 shell drain", equipment_id: "eq-crude-preheat" },
-    { id: "tr-0017", tag: "ST-0017", type: "Inverted Bucket", location: "Crude Preheat — Tracing manifold", equipment_id: "eq-crude-preheat" },
-    { id: "tr-0018", tag: "ST-0018", type: "Thermodynamic", location: "Crude Preheat — E-104 drip leg", equipment_id: "eq-crude-preheat" },
-    { id: "tr-0019", tag: "ST-0019", type: "Thermostatic", location: "Crude Preheat — E-102 channel drain", equipment_id: "eq-crude-preheat" },
-    { id: "tr-0020", tag: "ST-0020", type: "Thermodynamic", location: "Crude Preheat — Pump seal drip", equipment_id: "eq-crude-preheat" },
-    // Reboiler C-201
-    { id: "tr-0021", tag: "ST-0021", type: "Float & Thermostatic", location: "Reboiler C-201 — Shell drain", equipment_id: "eq-reboiler-c201" },
-    { id: "tr-0022", tag: "ST-0022", type: "Bimetallic", location: "Reboiler C-201 — Condensate header", equipment_id: "eq-reboiler-c201" },
-    { id: "tr-0023", tag: "ST-0023", type: "Thermodynamic", location: "Reboiler C-201 — Column reflux drip", equipment_id: "eq-reboiler-c201" },
-    { id: "tr-0024", tag: "ST-0024", type: "Inverted Bucket", location: "Reboiler C-201 — Steam inlet drip", equipment_id: "eq-reboiler-c201" },
-    // Separator V-301
-    { id: "tr-0025", tag: "ST-0025", type: "Inverted Bucket", location: "Separator V-301 — Boot drain", equipment_id: "eq-separator-301" },
-    { id: "tr-0026", tag: "ST-0026", type: "Float & Thermostatic", location: "Separator V-301 — Flash drum drip", equipment_id: "eq-separator-301" },
-    { id: "tr-0027", tag: "ST-0027", type: "Thermodynamic", location: "Separator V-301 — Tracing supply", equipment_id: "eq-separator-301" },
-    { id: "tr-0028", tag: "ST-0028", type: "Thermostatic", location: "Separator V-301 — Level bridle drain", equipment_id: "eq-separator-301" },
-    { id: "tr-0029", tag: "ST-0029", type: "Bimetallic", location: "Separator V-301 — Offgas condenser", equipment_id: "eq-separator-301" },
-    // Main Steam Header
-    { id: "tr-0030", tag: "ST-0030", type: "Thermodynamic", location: "Main Steam Header — Drip leg A", equipment_id: "eq-steam-header" },
-    { id: "tr-0031", tag: "ST-0031", type: "Thermodynamic", location: "Main Steam Header — Drip leg B", equipment_id: "eq-steam-header" },
-    { id: "tr-0032", tag: "ST-0032", type: "Thermostatic", location: "Main Steam Header — Tracing supply", equipment_id: "eq-steam-header" },
-    { id: "tr-0033", tag: "ST-0033", type: "Inverted Bucket", location: "Main Steam Header — Expansion loop drip", equipment_id: "eq-steam-header" },
-    { id: "tr-0034", tag: "ST-0034", type: "Float & Thermostatic", location: "Main Steam Header — PRV station drain", equipment_id: "eq-steam-header" },
-    // Campus Heating Loop
-    { id: "tr-0035", tag: "ST-0035", type: "Thermodynamic", location: "Campus Heat — Main riser drip", equipment_id: "eq-campus-heat" },
-    { id: "tr-0036", tag: "ST-0036", type: "Thermostatic", location: "Campus Heat — Building A supply", equipment_id: "eq-campus-heat" },
-    { id: "tr-0037", tag: "ST-0037", type: "Float & Thermostatic", location: "Campus Heat — Building B return", equipment_id: "eq-campus-heat" },
-    { id: "tr-0038", tag: "ST-0038", type: "Bimetallic", location: "Campus Heat — Tunnel drain pot", equipment_id: "eq-campus-heat" },
+    trap("tr-0001", "ST-0001", "Inverted Bucket", "Boiler 1 — Blowdown line", "eq-boiler-1"),
+    trap("tr-0002", "ST-0002", "Thermodynamic", "Boiler 1 — Steam drum drip", "eq-boiler-1"),
+    trap("tr-0003", "ST-0003", "Float & Thermostatic", "Boiler 1 — Economizer drain", "eq-boiler-1"),
+    trap("tr-0004", "ST-0004", "Thermodynamic", "Boiler 1 — Feedwater preheat drip", "eq-boiler-1"),
+    trap("tr-0005", "ST-0005", "Thermodynamic", "Boiler 2 — Steam drum drip", "eq-boiler-2"),
+    trap("tr-0006", "ST-0006", "Bimetallic", "Boiler 2 — Superheater drain", "eq-boiler-2"),
+    trap("tr-0007", "ST-0007", "Inverted Bucket", "Boiler 2 — Attemperator drain", "eq-boiler-2"),
+    trap("tr-0008", "ST-0008", "Float & Thermostatic", "Boiler 2 — Sample cooler drain", "eq-boiler-2"),
+    trap("tr-0009", "ST-0009", "Float & Thermostatic", "Deaerator — Vent condenser", "eq-deaerator"),
+    trap("tr-0010", "ST-0010", "Thermostatic", "Deaerator — Storage tank drip", "eq-deaerator"),
+    trap("tr-0011", "ST-0011", "Thermodynamic", "Deaerator — Pegging steam line", "eq-deaerator"),
+    trap("tr-0012", "ST-0012", "Thermodynamic", "Turbine — Extraction line drip", "eq-turbine"),
+    trap("tr-0013", "ST-0013", "Inverted Bucket", "Turbine — Gland seal condenser", "eq-turbine"),
+    trap("tr-0014", "ST-0014", "Float & Thermostatic", "Turbine — Lube oil heater drain", "eq-turbine"),
+    trap("tr-0015", "ST-0015", "Bimetallic", "Turbine — Casing drain pot", "eq-turbine"),
+    trap("tr-0016", "ST-0016", "Float & Thermostatic", "Crude Preheat — E-101 shell drain", "eq-crude-preheat"),
+    trap("tr-0017", "ST-0017", "Inverted Bucket", "Crude Preheat — Tracing manifold", "eq-crude-preheat"),
+    trap("tr-0018", "ST-0018", "Thermodynamic", "Crude Preheat — E-104 drip leg", "eq-crude-preheat"),
+    trap("tr-0019", "ST-0019", "Thermostatic", "Crude Preheat — E-102 channel drain", "eq-crude-preheat"),
+    trap("tr-0020", "ST-0020", "Thermodynamic", "Crude Preheat — Pump seal drip", "eq-crude-preheat"),
+    trap("tr-0021", "ST-0021", "Float & Thermostatic", "Reboiler C-201 — Shell drain", "eq-reboiler-c201"),
+    trap("tr-0022", "ST-0022", "Bimetallic", "Reboiler C-201 — Condensate header", "eq-reboiler-c201"),
+    trap("tr-0023", "ST-0023", "Thermodynamic", "Reboiler C-201 — Column reflux drip", "eq-reboiler-c201"),
+    trap("tr-0024", "ST-0024", "Inverted Bucket", "Reboiler C-201 — Steam inlet drip", "eq-reboiler-c201"),
+    trap("tr-0025", "ST-0025", "Inverted Bucket", "Separator V-301 — Boot drain", "eq-separator-301"),
+    trap("tr-0026", "ST-0026", "Float & Thermostatic", "Separator V-301 — Flash drum drip", "eq-separator-301"),
+    trap("tr-0027", "ST-0027", "Thermodynamic", "Separator V-301 — Tracing supply", "eq-separator-301"),
+    trap("tr-0028", "ST-0028", "Thermostatic", "Separator V-301 — Level bridle drain", "eq-separator-301"),
+    trap("tr-0029", "ST-0029", "Bimetallic", "Separator V-301 — Offgas condenser", "eq-separator-301"),
+    trap("tr-0030", "ST-0030", "Thermodynamic", "Main Steam Header — Drip leg A", "eq-steam-header"),
+    trap("tr-0031", "ST-0031", "Thermodynamic", "Main Steam Header — Drip leg B", "eq-steam-header"),
+    trap("tr-0032", "ST-0032", "Thermostatic", "Main Steam Header — Tracing supply", "eq-steam-header"),
+    trap("tr-0033", "ST-0033", "Inverted Bucket", "Main Steam Header — Expansion loop drip", "eq-steam-header"),
+    trap("tr-0034", "ST-0034", "Float & Thermostatic", "Main Steam Header — PRV station drain", "eq-steam-header"),
+    trap("tr-0035", "ST-0035", "Thermodynamic", "Campus Heat — Main riser drip", "eq-campus-heat"),
+    trap("tr-0036", "ST-0036", "Thermostatic", "Campus Heat — Building A supply", "eq-campus-heat"),
+    trap("tr-0037", "ST-0037", "Float & Thermostatic", "Campus Heat — Building B return", "eq-campus-heat"),
+    trap("tr-0038", "ST-0038", "Bimetallic", "Campus Heat — Tunnel drain pot", "eq-campus-heat"),
   ];
 
   const pm_records: Database["pm_records"] = [];
@@ -175,9 +185,9 @@ export function buildSeedDatabase(): Database {
   addPM("tr-0027", 180, "Working", null, "S. Patel", "Operating correctly.");
   addPM("tr-0031", 220, "Working", null, "R. Alvarez", "Cycling normally.");
 
-  // ── UPCOMING PM (due within 14 days) ──────────────────────────────────────
-  addPM("tr-0007", 352, "Working", null, "S. Patel", "Operating correctly.");
-  addPM("tr-0015", 355, "Working", null, "J. Okafor", "Normal discharge.");
+  // ── UPCOMING PM (due within 14 days, 90-day interval) ─────────────────────
+  addPM("tr-0007", 82, "Working", null, "S. Patel", "Operating correctly.");
+  addPM("tr-0015", 85, "Working", null, "J. Okafor", "Normal discharge.");
 
   // tr-0013, tr-0038 — never inspected (no records)
 
@@ -262,12 +272,33 @@ export function buildSeedDatabase(): Database {
     },
   ];
 
+  const shutdown_deferrals: Database["shutdown_deferrals"] = [
+    {
+      id: "sd-0001",
+      trap_id: "tr-0018",
+      recorded_date: daysAgo(14),
+      pm_due_date: daysAgo(10),
+      technician: "M. Chen",
+      notes: "Crude preheat train outage — PM deferred until equipment returns to service.",
+      created_at: ts(14),
+    },
+    {
+      id: "sd-0002",
+      trap_id: "tr-0027",
+      recorded_date: daysAgo(5),
+      pm_due_date: daysAgo(2),
+      technician: "S. Patel",
+      notes: "Separator V-301 shutdown for catalyst change.",
+      created_at: ts(5),
+    },
+  ];
+
   return {
     equipment,
     traps,
     pm_records,
     maintenance_records,
-    trap_types: DEFAULT_TRAP_TYPES.map((t) => ({ ...t })),
+    shutdown_deferrals,
     data_version: DATA_VERSION,
   };
 }

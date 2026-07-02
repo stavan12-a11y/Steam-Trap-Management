@@ -15,28 +15,42 @@ import type {
   MaintenanceAction,
   MaintenanceRecord,
   PMRecord,
+  ShutdownDeferral,
   Trap,
   TrapStatus,
-  TrapTypeName,
 } from '../types';
-import { ISSUE_TYPES, TRAP_TYPES } from '../types';
+import { ISSUE_TYPES, DEFAULT_TRAP_DATASHEET } from '../types';
 import { seedData, DATA_VERSION } from '../data/seedData';
 import { todayISO } from '../utils/logic';
 import { uid } from '../utils/id';
 import { isSupabaseConfigured, STATE_ROW_ID, STATE_TABLE, supabase } from '../lib/supabase';
 import { useAuth } from '../auth/AuthContext';
 
-const STORAGE_KEY = 'steam-trap-data-v3';
+const STORAGE_KEY = 'steam-trap-data-v4';
 
 export type SyncStatus = 'local' | 'loading' | 'saving' | 'saved' | 'error';
+
+function normalizeTrap(
+  t: Partial<Trap> & Pick<Trap, 'id' | 'tag' | 'type' | 'location' | 'equipment_id'>,
+): Trap {
+  return {
+    ...DEFAULT_TRAP_DATASHEET,
+    ...t,
+    id: t.id,
+    tag: t.tag,
+    type: t.type,
+    location: t.location,
+    equipment_id: t.equipment_id,
+  };
+}
 
 function normalizeData(raw: AppData): AppData {
   return {
     equipment: (raw.equipment ?? []).map(({ id, name, area }) => ({ id, name, area })),
-    traps: raw.traps ?? [],
+    traps: (raw.traps ?? []).map((t) => normalizeTrap(t)),
     pm_records: raw.pm_records ?? [],
     maintenance_records: raw.maintenance_records ?? [],
-    trap_types: raw.trap_types ?? [],
+    shutdown_deferrals: raw.shutdown_deferrals ?? [],
     data_version: raw.data_version ?? 1,
   };
 }
@@ -73,6 +87,7 @@ interface SteamTrapContextValue {
   deleteEquipment: (id: string) => void;
 
   addTrap: (t: Omit<Trap, 'id'>) => Trap;
+  updateTrap: (id: string, patch: Partial<Omit<Trap, 'id'>>) => void;
   deleteTrap: (id: string) => void;
 
   addPM: (
@@ -85,6 +100,19 @@ interface SteamTrapContextValue {
       notes?: string;
     },
   ) => { ok: true; record: PMRecord } | { ok: false; error: string };
+
+  updatePM: (
+    id: string,
+    input: {
+      date?: string;
+      status?: TrapStatus;
+      issue_type?: IssueType | null;
+      technician?: string;
+      notes?: string;
+    },
+  ) => { ok: true } | { ok: false; error: string };
+
+  deletePM: (id: string) => void;
 
   addMaintenance: (
     trapId: string,
@@ -99,9 +127,43 @@ interface SteamTrapContextValue {
     },
   ) => MaintenanceRecord;
 
+  updateMaintenance: (
+    id: string,
+    input: {
+      date?: string;
+      action?: MaintenanceAction;
+      technician?: string;
+      description?: string;
+      parts_replaced?: string;
+      cost?: number | null;
+      notes?: string;
+    },
+  ) => void;
+
   deleteMaintenance: (id: string) => void;
 
-  updateTrapTypeInterval: (type: TrapTypeName, pm_interval_days: number) => void;
+  addShutdownDeferral: (
+    trapId: string,
+    input: {
+      recorded_date?: string;
+      pm_due_date?: string;
+      technician?: string;
+      notes?: string;
+    },
+  ) => ShutdownDeferral;
+
+  updateShutdownDeferral: (
+    id: string,
+    input: {
+      recorded_date?: string;
+      pm_due_date?: string;
+      technician?: string;
+      notes?: string;
+    },
+  ) => void;
+
+  deleteShutdownDeferral: (id: string) => void;
+
   resetToSeed: () => void;
   clearAll: () => void;
 }
@@ -113,7 +175,7 @@ const EMPTY_DATA: AppData = {
   traps: [],
   pm_records: [],
   maintenance_records: [],
-  trap_types: [],
+  shutdown_deferrals: [],
   data_version: DATA_VERSION,
 };
 
@@ -242,15 +304,22 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
         traps: d.traps.filter((t) => t.equipment_id !== id),
         pm_records: d.pm_records.filter((r) => !trapIds.has(r.trap_id)),
         maintenance_records: d.maintenance_records.filter((r) => !trapIds.has(r.trap_id)),
-        trap_types: d.trap_types,
+        shutdown_deferrals: d.shutdown_deferrals.filter((r) => !trapIds.has(r.trap_id)),
       };
     });
   }, []);
 
   const addTrap = useCallback((t: Omit<Trap, 'id'>) => {
-    const created: Trap = { ...t, id: uid('tr') };
+    const created: Trap = { ...DEFAULT_TRAP_DATASHEET, ...t, id: uid('tr') };
     setData((d) => ({ ...d, traps: [...d.traps, created] }));
     return created;
+  }, []);
+
+  const updateTrap = useCallback((id: string, patch: Partial<Omit<Trap, 'id'>>) => {
+    setData((d) => ({
+      ...d,
+      traps: d.traps.map((t) => (t.id === id ? { ...t, ...patch } : t)),
+    }));
   }, []);
 
   const deleteTrap = useCallback((id: string) => {
@@ -259,6 +328,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
       traps: d.traps.filter((t) => t.id !== id),
       pm_records: d.pm_records.filter((r) => r.trap_id !== id),
       maintenance_records: d.maintenance_records.filter((r) => r.trap_id !== id),
+      shutdown_deferrals: d.shutdown_deferrals.filter((r) => r.trap_id !== id),
     }));
   }, []);
 
@@ -308,6 +378,66 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const updatePM = useCallback(
+    (
+      id: string,
+      input: {
+        date?: string;
+        status?: TrapStatus;
+        issue_type?: IssueType | null;
+        technician?: string;
+        notes?: string;
+      },
+    ): { ok: true } | { ok: false; error: string } => {
+      let result: { ok: true } | { ok: false; error: string } = { ok: true };
+
+      setData((d) => {
+        const existing = d.pm_records.find((r) => r.id === id);
+        if (!existing) {
+          result = { ok: false, error: 'PM record not found' };
+          return d;
+        }
+
+        const status = input.status ?? existing.status;
+        const issue_type = status === 'Issue' ? (input.issue_type ?? existing.issue_type) : null;
+
+        if (status === 'Issue') {
+          const it = issue_type;
+          if (!it || !ISSUE_TYPES.includes(it)) {
+            result = { ok: false, error: "Issue type is required when status is 'Issue'" };
+            return d;
+          }
+        }
+
+        return {
+          ...d,
+          pm_records: d.pm_records.map((r) =>
+            r.id === id
+              ? {
+                  ...r,
+                  date: (input.date ?? r.date).trim() || r.date,
+                  status,
+                  issue_type,
+                  technician: (input.technician ?? r.technician).trim() || r.technician,
+                  notes: (input.notes ?? r.notes).trim(),
+                }
+              : r,
+          ),
+        };
+      });
+
+      return result;
+    },
+    [],
+  );
+
+  const deletePM = useCallback((id: string) => {
+    setData((d) => ({
+      ...d,
+      pm_records: d.pm_records.filter((r) => r.id !== id),
+    }));
+  }, []);
+
   const addMaintenance = useCallback(
     (
       trapId: string,
@@ -342,6 +472,40 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const updateMaintenance = useCallback(
+    (
+      id: string,
+      input: {
+        date?: string;
+        action?: MaintenanceAction;
+        technician?: string;
+        description?: string;
+        parts_replaced?: string;
+        cost?: number | null;
+        notes?: string;
+      },
+    ) => {
+      setData((d) => ({
+        ...d,
+        maintenance_records: d.maintenance_records.map((r) =>
+          r.id === id
+            ? {
+                ...r,
+                date: (input.date ?? r.date).trim() || r.date,
+                action: input.action ?? r.action,
+                technician: (input.technician ?? r.technician).trim() || r.technician,
+                description: (input.description ?? r.description).trim(),
+                parts_replaced: (input.parts_replaced ?? r.parts_replaced).trim(),
+                cost: input.cost !== undefined ? input.cost : r.cost,
+                notes: (input.notes ?? r.notes).trim(),
+              }
+            : r,
+        ),
+      }));
+    },
+    [],
+  );
+
   const deleteMaintenance = useCallback((id: string) => {
     setData((d) => ({
       ...d,
@@ -349,21 +513,67 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const updateTrapTypeInterval = useCallback((type: TrapTypeName, pm_interval_days: number) => {
-    if (!TRAP_TYPES.includes(type)) return;
-    const interval = Math.round(pm_interval_days);
-    setData((d) => {
-      const existing = d.trap_types.find((t) => t.type === type);
-      if (existing) {
-        return {
-          ...d,
-          trap_types: d.trap_types.map((t) =>
-            t.type === type ? { ...t, pm_interval_days: interval } : t,
-          ),
-        };
-      }
-      return { ...d, trap_types: [...d.trap_types, { type, pm_interval_days: interval }] };
-    });
+  const addShutdownDeferral = useCallback(
+    (
+      trapId: string,
+      input: {
+        recorded_date?: string;
+        pm_due_date?: string;
+        technician?: string;
+        notes?: string;
+      },
+    ): ShutdownDeferral => {
+      const record: ShutdownDeferral = {
+        id: uid('sd'),
+        trap_id: trapId,
+        recorded_date: (input.recorded_date ?? '').trim() || todayISO(),
+        pm_due_date: (input.pm_due_date ?? '').trim() || todayISO(),
+        technician: (input.technician ?? '').trim() || 'Unknown',
+        notes: (input.notes ?? '').trim(),
+        created_at: new Date().toISOString(),
+      };
+      setData((d) => ({
+        ...d,
+        shutdown_deferrals: [...d.shutdown_deferrals, record],
+      }));
+      return record;
+    },
+    [],
+  );
+
+  const updateShutdownDeferral = useCallback(
+    (
+      id: string,
+      input: {
+        recorded_date?: string;
+        pm_due_date?: string;
+        technician?: string;
+        notes?: string;
+      },
+    ) => {
+      setData((d) => ({
+        ...d,
+        shutdown_deferrals: d.shutdown_deferrals.map((r) =>
+          r.id === id
+            ? {
+                ...r,
+                recorded_date: (input.recorded_date ?? r.recorded_date).trim() || r.recorded_date,
+                pm_due_date: (input.pm_due_date ?? r.pm_due_date).trim() || r.pm_due_date,
+                technician: (input.technician ?? r.technician).trim() || r.technician,
+                notes: (input.notes ?? r.notes).trim(),
+              }
+            : r,
+        ),
+      }));
+    },
+    [],
+  );
+
+  const deleteShutdownDeferral = useCallback((id: string) => {
+    setData((d) => ({
+      ...d,
+      shutdown_deferrals: d.shutdown_deferrals.filter((r) => r.id !== id),
+    }));
   }, []);
 
   const resetToSeed = useCallback(
@@ -383,11 +593,17 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
       updateEquipment,
       deleteEquipment,
       addTrap,
+      updateTrap,
       deleteTrap,
       addPM,
+      updatePM,
+      deletePM,
       addMaintenance,
+      updateMaintenance,
       deleteMaintenance,
-      updateTrapTypeInterval,
+      addShutdownDeferral,
+      updateShutdownDeferral,
+      deleteShutdownDeferral,
       resetToSeed,
       clearAll,
     }),
@@ -401,11 +617,17 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
       updateEquipment,
       deleteEquipment,
       addTrap,
+      updateTrap,
       deleteTrap,
       addPM,
+      updatePM,
+      deletePM,
       addMaintenance,
+      updateMaintenance,
       deleteMaintenance,
-      updateTrapTypeInterval,
+      addShutdownDeferral,
+      updateShutdownDeferral,
+      deleteShutdownDeferral,
       resetToSeed,
       clearAll,
     ],

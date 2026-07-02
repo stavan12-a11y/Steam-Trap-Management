@@ -5,6 +5,7 @@ import type {
   MaintenanceRecord,
   PMRecord,
   Priority,
+  ShutdownDeferral,
   Trap,
   TrapAlert,
   TrapView,
@@ -12,6 +13,7 @@ import type {
 import { PRIORITIES } from '../types';
 
 export const UPCOMING_WINDOW_DAYS = 14;
+export const PM_INTERVAL_DAYS = 90; // 3 months — uniform for all trap types
 export const ENGINEERING_REVIEW_FAILURE_THRESHOLD = 3;
 export const ENGINEERING_REVIEW_WINDOW_MONTHS = 36;
 export const REPEAT_FAILURE_THRESHOLD = 2;
@@ -85,9 +87,25 @@ export function maintenanceForTrap(db: Database, trapId: string): MaintenanceRec
     });
 }
 
-export function intervalForType(db: Database, type: string): number {
-  const cfg = db.trap_types.find((t) => t.type === type);
-  return cfg ? cfg.pm_interval_days : 365;
+/** All shutdown deferrals for a trap, newest first. */
+export function shutdownDeferralsForTrap(db: Database, trapId: string): ShutdownDeferral[] {
+  return (db.shutdown_deferrals ?? [])
+    .filter((r) => r.trap_id === trapId)
+    .sort((a, b) => {
+      if (a.recorded_date !== b.recorded_date) return a.recorded_date < b.recorded_date ? 1 : -1;
+      return a.created_at < b.created_at ? 1 : -1;
+    });
+}
+
+/** Uniform PM interval — 3 months for every trap type. */
+export function pmIntervalDays(): number {
+  return PM_INTERVAL_DAYS;
+}
+
+/** True when PM is approaching or overdue and a shutdown deferral may be recorded. */
+export function canRecordShutdownDeferral(view: TrapView): boolean {
+  if (!view.last_pm_date || view.days_until_due === null) return false;
+  return view.days_until_due <= UPCOMING_WINDOW_DAYS;
 }
 
 /** Count issue PM records within a rolling window. */
@@ -205,7 +223,7 @@ export function buildTrapView(
 ): TrapView {
   const records = db.pm_records.filter((r) => r.trap_id === trap.id);
   const latest = latestRecord(records);
-  const interval = intervalForType(db, trap.type);
+  const interval = pmIntervalDays();
   const review = evaluateEngineeringReview(records, today);
   const alerts = buildTrapAlerts(records, today);
 

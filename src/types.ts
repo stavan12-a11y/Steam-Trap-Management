@@ -7,6 +7,15 @@ export const TRAP_TYPES = [
 ] as const;
 export type TrapTypeName = (typeof TRAP_TYPES)[number];
 
+export const CONNECTION_TYPES = [
+  "NPT Threaded",
+  "Flanged",
+  "Socket Weld",
+  "Butt Weld",
+  "Tri-Clamp",
+] as const;
+export type ConnectionType = (typeof CONNECTION_TYPES)[number];
+
 export const TRAP_STATUSES = ["Working", "Issue"] as const;
 export type TrapStatus = (typeof TRAP_STATUSES)[number];
 
@@ -51,6 +60,12 @@ export interface Trap {
   type: TrapTypeName;
   location: string;
   equipment_id: string;
+  manufacturer: string;
+  model: string;
+  connection_type: string;
+  trap_size: string;
+  serial_number: string;
+  install_date: string | null;
 }
 
 export interface PMRecord {
@@ -77,9 +92,15 @@ export interface MaintenanceRecord {
   created_at: string;
 }
 
-export interface TrapTypeConfig {
-  type: TrapTypeName;
-  pm_interval_days: number;
+/** PM deferred because equipment was under shutdown — does not reset the PM schedule. */
+export interface ShutdownDeferral {
+  id: string;
+  trap_id: string;
+  recorded_date: string;
+  pm_due_date: string;
+  technician: string;
+  notes: string;
+  created_at: string;
 }
 
 export interface Database {
@@ -87,7 +108,7 @@ export interface Database {
   traps: Trap[];
   pm_records: PMRecord[];
   maintenance_records: MaintenanceRecord[];
-  trap_types: TrapTypeConfig[];
+  shutdown_deferrals: ShutdownDeferral[];
   /** Bumped when seed schema or demo data changes — prompts refresh if stale. */
   data_version?: number;
 }
@@ -112,3 +133,15 @@ export interface TrapView extends Trap {
   alerts: TrapAlert[];
   alert_count: number;
 }
+
+export const DEFAULT_TRAP_DATASHEET: Pick<
+  Trap,
+  'manufacturer' | 'model' | 'connection_type' | 'trap_size' | 'serial_number' | 'install_date'
+> = {
+  manufacturer: '',
+  model: '',
+  connection_type: '',
+  trap_size: '',
+  serial_number: '',
+  install_date: null,
+};

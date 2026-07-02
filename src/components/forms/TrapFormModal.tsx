@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSteamTrap } from '../../store/SteamTrapContext';
-import { TRAP_TYPES, type TrapTypeName } from '../../types';
+import { CONNECTION_TYPES, TRAP_TYPES, type TrapTypeName } from '../../types';
 import { Modal } from '../Modal';
 import { Field } from '../Field';
 
@@ -8,39 +8,83 @@ interface TrapFormModalProps {
   open: boolean;
   onClose: () => void;
   defaultEquipmentId?: string;
+  trapId?: string;
 }
 
-export function TrapFormModal({ open, onClose, defaultEquipmentId }: TrapFormModalProps) {
-  const { data, addTrap } = useSteamTrap();
+export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: TrapFormModalProps) {
+  const { data, addTrap, updateTrap } = useSteamTrap();
+  const editing = trapId ? data.traps.find((t) => t.id === trapId) : undefined;
+
   const [tag, setTag] = useState('');
   const [type, setType] = useState<TrapTypeName>(TRAP_TYPES[0]);
   const [location, setLocation] = useState('');
   const [equipmentId, setEquipmentId] = useState('');
+  const [manufacturer, setManufacturer] = useState('');
+  const [model, setModel] = useState('');
+  const [connectionType, setConnectionType] = useState('');
+  const [trapSize, setTrapSize] = useState('');
+  const [serialNumber, setSerialNumber] = useState('');
+  const [installDate, setInstallDate] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    setTag('');
-    setType(TRAP_TYPES[0]);
-    setLocation('');
-    setEquipmentId(defaultEquipmentId ?? data.equipment[0]?.id ?? '');
+    if (editing) {
+      setTag(editing.tag);
+      setType(editing.type);
+      setLocation(editing.location);
+      setEquipmentId(editing.equipment_id);
+      setManufacturer(editing.manufacturer);
+      setModel(editing.model);
+      setConnectionType(editing.connection_type);
+      setTrapSize(editing.trap_size);
+      setSerialNumber(editing.serial_number);
+      setInstallDate(editing.install_date ?? '');
+    } else {
+      setTag('');
+      setType(TRAP_TYPES[0]);
+      setLocation('');
+      setEquipmentId(defaultEquipmentId ?? data.equipment[0]?.id ?? '');
+      setManufacturer('');
+      setModel('');
+      setConnectionType('');
+      setTrapSize('');
+      setSerialNumber('');
+      setInstallDate('');
+    }
     setError(null);
-  }, [open, defaultEquipmentId, data.equipment]);
+  }, [open, defaultEquipmentId, data.equipment, editing]);
 
   const canSave = tag.trim() !== '' && equipmentId !== '';
 
   const handleSave = () => {
     if (!canSave) return;
-    if (data.traps.some((t) => t.tag.toLowerCase() === tag.trim().toLowerCase())) {
+    const duplicate = data.traps.some(
+      (t) => t.tag.toLowerCase() === tag.trim().toLowerCase() && t.id !== trapId,
+    );
+    if (duplicate) {
       setError(`Tag ${tag} already exists.`);
       return;
     }
-    addTrap({
+
+    const payload = {
       tag: tag.trim(),
       type,
       location: location.trim() || 'Unspecified',
       equipment_id: equipmentId,
-    });
+      manufacturer: manufacturer.trim(),
+      model: model.trim(),
+      connection_type: connectionType.trim(),
+      trap_size: trapSize.trim(),
+      serial_number: serialNumber.trim(),
+      install_date: installDate.trim() || null,
+    };
+
+    if (trapId) {
+      updateTrap(trapId, payload);
+    } else {
+      addTrap(payload);
+    }
     onClose();
   };
 
@@ -48,14 +92,15 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId }: TrapFormMod
     <Modal
       open={open}
       onClose={onClose}
-      title="Add trap"
+      title={trapId ? 'Edit trap' : 'Add trap'}
+      size="lg"
       footer={
         <>
           <button className="btn-secondary" onClick={onClose}>
             Cancel
           </button>
           <button className="btn-primary" onClick={handleSave} disabled={!canSave}>
-            Add trap
+            {trapId ? 'Save changes' : 'Add trap'}
           </button>
         </>
       }
@@ -89,6 +134,60 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId }: TrapFormMod
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             placeholder="e.g. Boiler 1 — Drip leg"
+          />
+        </Field>
+        <Field label="Manufacturer">
+          <input
+            className="input"
+            value={manufacturer}
+            onChange={(e) => setManufacturer(e.target.value)}
+            placeholder="e.g. Spirax Sarco"
+          />
+        </Field>
+        <Field label="Model">
+          <input
+            className="input"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            placeholder="e.g. IB-15"
+          />
+        </Field>
+        <Field label="Connection type">
+          <select
+            className="input"
+            value={connectionType}
+            onChange={(e) => setConnectionType(e.target.value)}
+          >
+            <option value="">— Select —</option>
+            {CONNECTION_TYPES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Trap size">
+          <input
+            className="input"
+            value={trapSize}
+            onChange={(e) => setTrapSize(e.target.value)}
+            placeholder={'e.g. 3/4"'}
+          />
+        </Field>
+        <Field label="Serial number">
+          <input
+            className="input"
+            value={serialNumber}
+            onChange={(e) => setSerialNumber(e.target.value)}
+            placeholder="e.g. SS-2019-4412"
+          />
+        </Field>
+        <Field label="Install date">
+          <input
+            type="date"
+            className="input"
+            value={installDate}
+            onChange={(e) => setInstallDate(e.target.value)}
           />
         </Field>
       </div>

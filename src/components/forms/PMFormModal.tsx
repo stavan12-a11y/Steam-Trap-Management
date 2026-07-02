@@ -10,6 +10,7 @@ interface PMFormModalProps {
   open: boolean;
   onClose: () => void;
   trapId: string;
+  recordId?: string;
 }
 
 function todayLocal(): string {
@@ -18,11 +19,12 @@ function todayLocal(): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function PMFormModal({ open, onClose, trapId }: PMFormModalProps) {
-  const { data, addPM } = useSteamTrap();
+export function PMFormModal({ open, onClose, trapId, recordId }: PMFormModalProps) {
+  const { data, addPM, updatePM } = useSteamTrap();
   const trap = data.traps.find((t) => t.id === trapId);
   const equipment = trap ? data.equipment.find((e) => e.id === trap.equipment_id) : undefined;
   const view = trap && equipment ? buildTrapView(data, trap, equipment) : null;
+  const existing = recordId ? data.pm_records.find((r) => r.id === recordId) : undefined;
 
   const [date, setDate] = useState(todayLocal());
   const [status, setStatus] = useState<TrapStatus>('Working');
@@ -33,23 +35,33 @@ export function PMFormModal({ open, onClose, trapId }: PMFormModalProps) {
 
   useEffect(() => {
     if (!open) return;
-    setDate(todayLocal());
-    setStatus('Working');
-    setIssueType(ISSUE_TYPES[0]);
-    setTechnician('');
-    setNotes('');
+    if (existing) {
+      setDate(existing.date);
+      setStatus(existing.status);
+      setIssueType(existing.issue_type ?? ISSUE_TYPES[0]);
+      setTechnician(existing.technician);
+      setNotes(existing.notes);
+    } else {
+      setDate(todayLocal());
+      setStatus('Working');
+      setIssueType(ISSUE_TYPES[0]);
+      setTechnician('');
+      setNotes('');
+    }
     setError(null);
-  }, [open, trapId]);
+  }, [open, trapId, recordId, existing]);
 
   const handleSave = () => {
     setError(null);
-    const res = addPM(trapId, {
+    const input = {
       date,
       status,
       issue_type: status === 'Issue' ? issueType : null,
       technician,
       notes,
-    });
+    };
+
+    const res = recordId ? updatePM(recordId, input) : addPM(trapId, input);
     if (!res.ok) {
       setError(res.error);
       return;
@@ -61,14 +73,14 @@ export function PMFormModal({ open, onClose, trapId }: PMFormModalProps) {
     <Modal
       open={open}
       onClose={onClose}
-      title={`Record PM · ${view?.tag ?? ''}`}
+      title={`${recordId ? 'Edit' : 'Record'} PM · ${view?.tag ?? ''}`}
       footer={
         <>
           <button className="btn-secondary" onClick={onClose}>
             Cancel
           </button>
           <button className="btn-primary" onClick={handleSave}>
-            Submit PM
+            {recordId ? 'Save changes' : 'Submit PM'}
           </button>
         </>
       }

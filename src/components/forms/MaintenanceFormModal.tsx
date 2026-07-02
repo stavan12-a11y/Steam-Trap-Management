@@ -8,6 +8,7 @@ interface MaintenanceFormModalProps {
   open: boolean;
   onClose: () => void;
   trapId: string;
+  recordId?: string;
 }
 
 function todayLocal(): string {
@@ -16,9 +17,10 @@ function todayLocal(): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function MaintenanceFormModal({ open, onClose, trapId }: MaintenanceFormModalProps) {
-  const { data, addMaintenance } = useSteamTrap();
+export function MaintenanceFormModal({ open, onClose, trapId, recordId }: MaintenanceFormModalProps) {
+  const { data, addMaintenance, updateMaintenance } = useSteamTrap();
   const trap = data.traps.find((t) => t.id === trapId);
+  const existing = recordId ? data.maintenance_records.find((r) => r.id === recordId) : undefined;
 
   const [date, setDate] = useState(todayLocal());
   const [action, setAction] = useState<MaintenanceAction>('Maintenance');
@@ -30,17 +32,27 @@ export function MaintenanceFormModal({ open, onClose, trapId }: MaintenanceFormM
 
   useEffect(() => {
     if (!open) return;
-    setDate(todayLocal());
-    setAction('Maintenance');
-    setTechnician('');
-    setDescription('');
-    setPartsReplaced('');
-    setCost('');
-    setNotes('');
-  }, [open, trapId]);
+    if (existing) {
+      setDate(existing.date);
+      setAction(existing.action);
+      setTechnician(existing.technician);
+      setDescription(existing.description);
+      setPartsReplaced(existing.parts_replaced);
+      setCost(existing.cost != null ? String(existing.cost) : '');
+      setNotes(existing.notes);
+    } else {
+      setDate(todayLocal());
+      setAction('Maintenance');
+      setTechnician('');
+      setDescription('');
+      setPartsReplaced('');
+      setCost('');
+      setNotes('');
+    }
+  }, [open, trapId, recordId, existing]);
 
   const handleSave = () => {
-    addMaintenance(trapId, {
+    const input = {
       date,
       action,
       technician,
@@ -48,7 +60,13 @@ export function MaintenanceFormModal({ open, onClose, trapId }: MaintenanceFormM
       parts_replaced: partsReplaced,
       cost: cost.trim() ? parseFloat(cost) : null,
       notes,
-    });
+    };
+
+    if (recordId) {
+      updateMaintenance(recordId, input);
+    } else {
+      addMaintenance(trapId, input);
+    }
     onClose();
   };
 
@@ -58,14 +76,14 @@ export function MaintenanceFormModal({ open, onClose, trapId }: MaintenanceFormM
     <Modal
       open={open}
       onClose={onClose}
-      title={`Record Maintenance · ${trap?.tag ?? ''}`}
+      title={`${recordId ? 'Edit' : 'Record'} Maintenance · ${trap?.tag ?? ''}`}
       footer={
         <>
           <button className="btn-secondary" onClick={onClose}>
             Cancel
           </button>
           <button className="btn-primary" onClick={handleSave} disabled={!canSave}>
-            Save record
+            {recordId ? 'Save changes' : 'Save record'}
           </button>
         </>
       }
