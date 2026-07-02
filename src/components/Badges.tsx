@@ -59,3 +59,12 @@ export function MaintenanceActionBadge({ action }: { action: string }) {
     </span>
   );
 }
+
+export function ShutdownDeferralBadge() {
+  return (
+    <span className={`${BASE} bg-sky-100 text-sky-800 ring-sky-600/20`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
+      Equipment Shutdown
+    </span>
+  );
+}

@@ -1,16 +1,56 @@
 import type { Database, Trap, TrapTypeName } from '../types';
-import { DEFAULT_TRAP_DATASHEET } from '../types';
+import { CONNECTION_TYPES, DEFAULT_TRAP_DATASHEET } from '../types';
 
-export const DATA_VERSION = 4;
+export const DATA_VERSION = 5;
 
-const DATASHEET: Record<string, Partial<Trap>> = {
-  'ST-0001': { manufacturer: 'Spirax Sarco', model: 'IB-15', connection_type: 'Flanged', trap_size: '1"', serial_number: 'SS-2019-4412', install_date: '2019-03-15' },
-  'ST-0002': { manufacturer: 'TLV', model: 'A3N', connection_type: 'NPT Threaded', trap_size: '3/4"', serial_number: 'TLV-8821', install_date: '2020-06-01' },
-  'ST-0005': { manufacturer: 'Armstrong', model: 'CD-33S', connection_type: 'NPT Threaded', trap_size: '1/2"', serial_number: 'ARM-5520', install_date: '2021-01-10' },
-  'ST-0016': { manufacturer: 'Spirax Sarco', model: 'FT-14', connection_type: 'Flanged', trap_size: '3/4"', serial_number: 'SS-2022-1098', install_date: '2022-04-20' },
-  'ST-0025': { manufacturer: 'Armstrong', model: 'IB-1210', connection_type: 'Flanged', trap_size: '2"', serial_number: 'ARM-3310', install_date: '2018-11-05' },
-  'ST-0030': { manufacturer: 'TLV', model: 'A3N', connection_type: 'Socket Weld', trap_size: '1/2"', serial_number: 'TLV-9902', install_date: '2020-09-12' },
+const TYPE_SPECS: Record<TrapTypeName, { manufacturers: string[]; models: string[] }> = {
+  'Float & Thermostatic': {
+    manufacturers: ['Spirax Sarco', 'Armstrong', 'Gestra'],
+    models: ['FT-14', 'FT-30', 'FT-C32', 'FA-125'],
+  },
+  'Inverted Bucket': {
+    manufacturers: ['Armstrong', 'Spirax Sarco', 'Watson McDaniel'],
+    models: ['IB-15', 'IB-1210', '2011-B', 'I-631'],
+  },
+  Thermodynamic: {
+    manufacturers: ['TLV', 'Spirax Sarco', 'Velan'],
+    models: ['A3N', 'TD-42', 'TD52M', 'J3X'],
+  },
+  Thermostatic: {
+    manufacturers: ['Spirax Sarco', 'TLV', 'Armstrong'],
+    models: ['BN-3', 'ATC-175', 'TSS-7', 'NPT-33'],
+  },
+  Bimetallic: {
+    manufacturers: ['Armstrong', 'Watson McDaniel', 'Gestra'],
+    models: ['CD-33S', 'BM-599', 'BK-37', 'MK-45'],
+  },
 };
+
+const TRAP_SIZES = ['1/2"', '3/4"', '1"', '1-1/2"', '2"'] as const;
+
+function datasheetFor(
+  tag: string,
+  type: TrapTypeName,
+): Pick<Trap, 'manufacturer' | 'model' | 'connection_type' | 'trap_size' | 'serial_number' | 'install_date'> {
+  const num = parseInt(tag.replace('ST-', ''), 10) || 1;
+  const spec = TYPE_SPECS[type];
+  const manufacturer = spec.manufacturers[num % spec.manufacturers.length];
+  const model = spec.models[num % spec.models.length];
+  const connection_type = CONNECTION_TYPES[num % CONNECTION_TYPES.length];
+  const trap_size = TRAP_SIZES[num % TRAP_SIZES.length];
+  const year = 2015 + (num % 10);
+  const month = String((num % 12) + 1).padStart(2, '0');
+  const day = String((num % 28) + 1).padStart(2, '0');
+  const prefix = manufacturer
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase();
+  const serial_number = `${prefix}-${year}-${String(1000 + num).slice(-4)}`;
+  const install_date = `${year}-${month}-${day}`;
+
+  return { manufacturer, model, connection_type, trap_size, serial_number, install_date };
+}
 
 function trap(
   id: string,
@@ -26,7 +66,7 @@ function trap(
     location,
     equipment_id,
     ...DEFAULT_TRAP_DATASHEET,
-    ...DATASHEET[tag],
+    ...datasheetFor(tag, type),
   };
 }
 

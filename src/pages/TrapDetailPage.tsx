@@ -1,46 +1,56 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import {
-  AlertTriangle,
-  ClipboardCheck,
-  Pencil,
-  Plus,
-  Power,
-  Wrench,
-} from 'lucide-react';
+import { AlertTriangle, ClipboardCheck, Pencil, Plus, Wrench } from 'lucide-react';
 import { useSteamTrap } from '../store/SteamTrapContext';
+import type { PMRecord, ShutdownDeferral } from '../types';
 import {
   PM_INTERVAL_DAYS,
   buildTrapView,
-  canRecordShutdownDeferral,
   maintenanceForTrap,
   recordsForTrap,
   shutdownDeferralsForTrap,
 } from '../utils/logic';
 import { dueLabel } from '../utils/format';
 import { Breadcrumbs } from '../components/Breadcrumbs';
-import { MaintenanceActionBadge, PriorityBadge, StatusBadge } from '../components/Badges';
+import {
+  MaintenanceActionBadge,
+  PriorityBadge,
+  ShutdownDeferralBadge,
+  StatusBadge,
+} from '../components/Badges';
 import { TrapAlertBadges, TrapAlertBanner } from '../components/TrapAlerts';
 import { TrapFormModal } from '../components/forms/TrapFormModal';
 import { PMFormModal } from '../components/forms/PMFormModal';
 import { MaintenanceFormModal } from '../components/forms/MaintenanceFormModal';
-import { ShutdownDeferralFormModal } from '../components/forms/ShutdownDeferralFormModal';
 
 function displayValue(value: string | null | undefined): string {
   return value?.trim() ? value : '—';
 }
 
+type HistoryEntry =
+  | { kind: 'pm'; date: string; created_at: string; record: PMRecord }
+  | { kind: 'shutdown'; date: string; created_at: string; record: ShutdownDeferral };
+
+function mergeHistory(pm: PMRecord[], shutdown: ShutdownDeferral[]): HistoryEntry[] {
+  return [
+    ...pm.map((record) => ({ kind: 'pm' as const, date: record.date, created_at: record.created_at, record })),
+    ...shutdown.map((record) => ({
+      kind: 'shutdown' as const,
+      date: record.recorded_date,
+      created_at: record.created_at,
+      record,
+    })),
+  ].sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+    return a.created_at < b.created_at ? 1 : -1;
+  });
+}
+
 export function TrapDetailPage() {
   const { trapId } = useParams<{ trapId: string }>();
   const navigate = useNavigate();
-  const {
-    data,
-    getTrap,
-    deleteTrap,
-    deletePM,
-    deleteMaintenance,
-    deleteShutdownDeferral,
-  } = useSteamTrap();
+  const { data, getTrap, deleteTrap, deletePM, deleteMaintenance, deleteShutdownDeferral } =
+    useSteamTrap();
   const trap = trapId ? getTrap(trapId) : undefined;
   const equipment = trap ? data.equipment.find((e) => e.id === trap.equipment_id) : undefined;
   const view = useMemo(() => {
@@ -53,30 +63,27 @@ export function TrapDetailPage() {
     () => (trapId ? shutdownDeferralsForTrap(data, trapId) : []),
     [data, trapId],
   );
+  const history = useMemo(
+    () => mergeHistory(records, shutdownDeferrals),
+    [records, shutdownDeferrals],
+  );
 
   const [trapEditOpen, setTrapEditOpen] = useState(false);
   const [pmOpen, setPmOpen] = useState(false);
   const [editPmId, setEditPmId] = useState<string | undefined>();
+  const [editDeferralId, setEditDeferralId] = useState<string | undefined>();
   const [mntOpen, setMntOpen] = useState(false);
   const [editMntId, setEditMntId] = useState<string | undefined>();
-  const [shutdownOpen, setShutdownOpen] = useState(false);
-  const [editShutdownId, setEditShutdownId] = useState<string | undefined>();
 
-  const showShutdownDeferral = view ? canRecordShutdownDeferral(view) : false;
-
-  const openPm = (recordId?: string) => {
+  const openPm = (recordId?: string, deferralId?: string) => {
     setEditPmId(recordId);
+    setEditDeferralId(deferralId);
     setPmOpen(true);
   };
 
   const openMnt = (recordId?: string) => {
     setEditMntId(recordId);
     setMntOpen(true);
-  };
-
-  const openShutdown = (recordId?: string) => {
-    setEditShutdownId(recordId);
-    setShutdownOpen(true);
   };
 
   if (!trap || !equipment || !view) {
@@ -106,12 +113,6 @@ export function TrapDetailPage() {
             <ClipboardCheck className="h-4 w-4" />
             Record PM
           </button>
-          {showShutdownDeferral && (
-            <button className="btn-secondary" onClick={() => openShutdown()}>
-              <Power className="h-4 w-4" />
-              Equipment Shutdown
-            </button>
-          )}
           <button className="btn-secondary" onClick={() => openMnt()}>
             <Wrench className="h-4 w-4" />
             Record Maintenance
@@ -133,20 +134,6 @@ export function TrapDetailPage() {
       {view.alerts.map((alert) => (
         <TrapAlertBanner key={alert.type} alert={alert} />
       ))}
-
-      {showShutdownDeferral && (
-        <div className="flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-          <Power className="mt-0.5 h-5 w-5 shrink-0" />
-          <div>
-            <p className="font-semibold">PM approaching or due — equipment under shutdown?</p>
-            <p className="mt-0.5">
-              Record a shutdown deferral if this trap cannot be inspected while{' '}
-              <span className="font-medium">{view.equipment_name}</span> is out of service. The next
-              PM date ({view.next_pm_date}) remains unchanged.
-            </p>
-          </div>
-        </div>
-      )}
 
       <div className="card overflow-hidden">
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3">
@@ -208,82 +195,64 @@ export function TrapDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="card p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">
-              Inspection History
-            </h3>
-            <span className="text-xs text-slate-400">{records.length} records</span>
-          </div>
-          {records.length === 0 ? (
-            <p className="text-sm text-slate-500">No inspections recorded yet.</p>
-          ) : (
-            <ul className="space-y-4 border-l-2 border-slate-200 pl-4">
-              {records.map((r) => (
-                <li key={r.id} className="relative">
-                  <span
-                    className={`absolute -left-[21px] top-1 h-3 w-3 rounded-full ring-2 ring-white ${
-                      r.status === 'Issue' ? 'bg-red-500' : 'bg-emerald-500'
-                    }`}
-                  />
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-sm font-semibold">{r.date}</span>
-                    <div className="flex items-center gap-2">
-                      <StatusBadge status={r.status} issueType={r.issue_type} />
-                      <button
-                        className="text-xs font-semibold text-slate-600 hover:underline"
-                        onClick={() => openPm(r.id)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="text-xs font-semibold text-red-600 hover:underline"
-                        onClick={() => {
-                          if (confirm('Delete this PM record?')) deletePM(r.id);
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                  <p className="mt-1 text-xs text-slate-500">Technician: {r.technician}</p>
-                  {r.notes && <p className="mt-2 text-sm text-slate-700">{r.notes}</p>}
-                </li>
-              ))}
-            </ul>
-          )}
+      <div className="card p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">
+            Inspection History
+          </h3>
+          <span className="text-xs text-slate-400">{history.length} records</span>
         </div>
+        {history.length === 0 ? (
+          <p className="text-sm text-slate-500">No inspections recorded yet.</p>
+        ) : (
+          <ul className="space-y-4 border-l-2 border-slate-200 pl-4">
+            {history.map((entry) => {
+              if (entry.kind === 'pm') {
+                const r = entry.record;
+                return (
+                  <li key={r.id} className="relative">
+                    <span
+                      className={`absolute -left-[21px] top-1 h-3 w-3 rounded-full ring-2 ring-white ${
+                        r.status === 'Issue' ? 'bg-red-500' : 'bg-emerald-500'
+                      }`}
+                    />
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-sm font-semibold">{r.date}</span>
+                      <div className="flex items-center gap-2">
+                        <StatusBadge status={r.status} issueType={r.issue_type} />
+                        <button
+                          className="text-xs font-semibold text-slate-600 hover:underline"
+                          onClick={() => openPm(r.id)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="text-xs font-semibold text-red-600 hover:underline"
+                          onClick={() => {
+                            if (confirm('Delete this PM record?')) deletePM(r.id);
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">Technician: {r.technician}</p>
+                    {r.notes && <p className="mt-2 text-sm text-slate-700">{r.notes}</p>}
+                  </li>
+                );
+              }
 
-        <div className="card p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">
-                Shutdown Deferrals
-              </h3>
-              <p className="mt-0.5 text-xs text-slate-500">
-                PM deferred due to equipment outage — schedule unchanged
-              </p>
-            </div>
-            {showShutdownDeferral && (
-              <button className="btn-secondary text-xs" onClick={() => openShutdown()}>
-                <Plus className="h-3.5 w-3.5" />
-                Record
-              </button>
-            )}
-          </div>
-          {shutdownDeferrals.length === 0 ? (
-            <p className="text-sm text-slate-500">No shutdown deferrals recorded.</p>
-          ) : (
-            <ul className="space-y-4">
-              {shutdownDeferrals.map((sd) => (
-                <li key={sd.id} className="rounded-lg border border-slate-200 p-3">
+              const sd = entry.record;
+              return (
+                <li key={sd.id} className="relative">
+                  <span className="absolute -left-[21px] top-1 h-3 w-3 rounded-full bg-sky-500 ring-2 ring-white" />
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono text-sm font-semibold">{sd.recorded_date}</span>
                     <div className="flex items-center gap-2">
+                      <ShutdownDeferralBadge />
                       <button
                         className="text-xs font-semibold text-slate-600 hover:underline"
-                        onClick={() => openShutdown(sd.id)}
+                        onClick={() => openPm(undefined, sd.id)}
                       >
                         Edit
                       </button>
@@ -303,10 +272,10 @@ export function TrapDetailPage() {
                   </p>
                   {sd.notes && <p className="mt-2 text-sm text-slate-700">{sd.notes}</p>}
                 </li>
-              ))}
-            </ul>
-          )}
-        </div>
+              );
+            })}
+          </ul>
+        )}
       </div>
 
       <div className="card p-5">
@@ -409,9 +378,11 @@ export function TrapDetailPage() {
         onClose={() => {
           setPmOpen(false);
           setEditPmId(undefined);
+          setEditDeferralId(undefined);
         }}
         trapId={view.id}
         recordId={editPmId}
+        deferralId={editDeferralId}
       />
       <MaintenanceFormModal
         open={mntOpen}
@@ -421,15 +392,6 @@ export function TrapDetailPage() {
         }}
         trapId={view.id}
         recordId={editMntId}
-      />
-      <ShutdownDeferralFormModal
-        open={shutdownOpen}
-        onClose={() => {
-          setShutdownOpen(false);
-          setEditShutdownId(undefined);
-        }}
-        trapId={view.id}
-        recordId={editShutdownId}
       />
     </div>
   );
