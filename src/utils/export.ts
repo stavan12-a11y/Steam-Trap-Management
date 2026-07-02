@@ -20,7 +20,6 @@ export type ExportOptionKey =
   | 'fleet_reliability_history'
   | 'active_issues_history'
   | 'overdue_pm_history'
-  | 'pm_schedule_history'
   | 'trap_register'
   | 'inspection_history'
   | 'maintenance_history';
@@ -49,12 +48,6 @@ export const EXPORT_OPTIONS: ExportOption[] = [
     key: 'overdue_pm_history',
     label: 'Overdue PM History',
     description: 'Date-wise overdue PM counts and change vs prior snapshot',
-    historical: true,
-  },
-  {
-    key: 'pm_schedule_history',
-    label: 'PM Schedule History',
-    description: 'Date-wise on track, due soon, overdue, and never inspected counts',
     historical: true,
   },
   {
@@ -319,36 +312,10 @@ export function buildOverduePMHistorySheet(data: AppData): ExportSheet {
   return { name: 'Overdue PM History', headers, rows };
 }
 
-export function buildPMScheduleHistorySheet(data: AppData): ExportSheet {
-  const snapshots = sortedKPISnapshots(data);
-  const headers = [
-    'Date',
-    'On Track',
-    'Due Soon',
-    'Overdue',
-    'Never Inspected',
-    'Healthy',
-    'Upcoming',
-  ];
-
-  const rows = snapshots.map((s) => [
-    s.date,
-    s.on_track_pm,
-    s.due_soon_pm,
-    s.overdue_pm,
-    s.never_inspected,
-    s.healthy_count,
-    s.upcoming_count,
-  ]);
-
-  return { name: 'PM Schedule History', headers, rows };
-}
-
 const SHEET_BUILDERS: Record<ExportOptionKey, (data: AppData) => ExportSheet> = {
   fleet_reliability_history: buildFleetReliabilityHistorySheet,
   active_issues_history: buildActiveIssuesHistorySheet,
   overdue_pm_history: buildOverduePMHistorySheet,
-  pm_schedule_history: buildPMScheduleHistorySheet,
   trap_register: buildTrapRegisterSheet,
   inspection_history: (data) => buildInspectionSheet(data),
   maintenance_history: (data) => buildMaintenanceSheet(data),

@@ -47,8 +47,8 @@ export function ReportingPage() {
       <div className="card border-sky-200 bg-sky-50/50 p-4 text-sm text-sky-900">
         <p>
           <span className="font-semibold">{snapshotCount} KPI snapshots</span> are stored automatically
-          each day the fleet data changes. Historical sheets (fleet reliability, active issues, PM
-          schedule) use these snapshots so you can track improvement over time. Use{' '}
+          each day the fleet data changes. Historical sheets (fleet reliability, active issues, overdue
+          PM) use these snapshots so you can track improvement over time. Use{' '}
           <span className="font-semibold">Custom export</span> to pick exactly what to download.
         </p>
       </div>
