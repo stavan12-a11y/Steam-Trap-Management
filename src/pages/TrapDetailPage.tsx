@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, ClipboardCheck, FileSpreadsheet, Pencil, Plus, Wrench } from 'lucide-react';
+import { AlertTriangle, ClipboardCheck, FileSpreadsheet, Pencil, Plus, ShieldCheck, Wrench } from 'lucide-react';
 import { useSteamTrap } from '../store/SteamTrapContext';
 import type { PMRecord, ShutdownDeferral } from '../types';
 import {
   PM_INTERVAL_DAYS,
   buildTrapView,
+  engineeringReviewsForTrap,
   maintenanceForTrap,
   recordsForTrap,
   shutdownDeferralsForTrap,
@@ -13,6 +14,7 @@ import {
 import { dueLabel } from '../utils/format';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import {
+  EngineeringReviewOutcomeBadge,
   MaintenanceActionBadge,
   PriorityBadge,
   ShutdownDeferralBadge,
@@ -22,6 +24,7 @@ import { TrapAlertBadges, TrapAlertBanner } from '../components/TrapAlerts';
 import { TrapFormModal } from '../components/forms/TrapFormModal';
 import { PMFormModal } from '../components/forms/PMFormModal';
 import { MaintenanceFormModal } from '../components/forms/MaintenanceFormModal';
+import { EngineeringReviewFormModal } from '../components/forms/EngineeringReviewFormModal';
 import { exportTrapWorkbookExcel } from '../utils/export';
 
 function displayValue(value: string | null | undefined): string {
@@ -50,7 +53,7 @@ function mergeHistory(pm: PMRecord[], shutdown: ShutdownDeferral[]): HistoryEntr
 export function TrapDetailPage() {
   const { trapId } = useParams<{ trapId: string }>();
   const navigate = useNavigate();
-  const { data, getTrap, deleteTrap, deletePM, deleteMaintenance, deleteShutdownDeferral } =
+  const { data, getTrap, deleteTrap, deletePM, deleteMaintenance, deleteShutdownDeferral, deleteEngineeringReview } =
     useSteamTrap();
   const trap = trapId ? getTrap(trapId) : undefined;
   const equipment = trap ? data.equipment.find((e) => e.id === trap.equipment_id) : undefined;
@@ -64,6 +67,10 @@ export function TrapDetailPage() {
     () => (trapId ? shutdownDeferralsForTrap(data, trapId) : []),
     [data, trapId],
   );
+  const engineeringReviews = useMemo(
+    () => (trapId ? engineeringReviewsForTrap(data, trapId) : []),
+    [data, trapId],
+  );
   const history = useMemo(
     () => mergeHistory(records, shutdownDeferrals),
     [records, shutdownDeferrals],
@@ -75,6 +82,13 @@ export function TrapDetailPage() {
   const [editDeferralId, setEditDeferralId] = useState<string | undefined>();
   const [mntOpen, setMntOpen] = useState(false);
   const [editMntId, setEditMntId] = useState<string | undefined>();
+  const [engReviewOpen, setEngReviewOpen] = useState(false);
+  const [editEngReviewId, setEditEngReviewId] = useState<string | undefined>();
+
+  const openEngReview = (recordId?: string) => {
+    setEditEngReviewId(recordId);
+    setEngReviewOpen(true);
+  };
 
   const openPm = (recordId?: string, deferralId?: string) => {
     setEditPmId(recordId);
@@ -141,7 +155,15 @@ export function TrapDetailPage() {
       </div>
 
       {view.alerts.map((alert) => (
-        <TrapAlertBanner key={alert.type} alert={alert} />
+        <TrapAlertBanner
+          key={alert.type}
+          alert={alert}
+          action={
+            alert.type === 'engineering_review'
+              ? { label: 'Record engineering review', onClick: () => openEngReview() }
+              : undefined
+          }
+        />
       ))}
 
       <div className="card overflow-hidden">
@@ -366,6 +388,80 @@ export function TrapDetailPage() {
         </div>
       </div>
 
+      <div className="card p-5">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">
+              Engineering Reviews
+            </h3>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Completed reviews clear the alert until new failures accumulate
+            </p>
+          </div>
+          <button className="btn-secondary shrink-0 text-sm" onClick={() => openEngReview()}>
+            <ShieldCheck className="h-4 w-4" />
+            Record review
+          </button>
+        </div>
+
+        {engineeringReviews.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-slate-200 py-8 text-center">
+            <ShieldCheck className="mx-auto h-8 w-8 text-slate-300" />
+            <p className="mt-2 text-sm text-slate-500">No engineering reviews recorded yet.</p>
+            {view.engineering_review_required && (
+              <button className="btn-primary mt-3 inline-flex text-sm" onClick={() => openEngReview()}>
+                Record engineering review
+              </button>
+            )}
+          </div>
+        ) : (
+          <ul className="space-y-3">
+            {engineeringReviews.map((review) => (
+              <li key={review.id} className="rounded-lg border border-slate-200 p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-xs font-semibold">{review.review_date}</span>
+                  <EngineeringReviewOutcomeBadge outcome={review.outcome} />
+                </div>
+                <p className="mt-2 text-xs text-slate-500">Reviewer: {review.reviewer}</p>
+                {review.outcome === 'Trap replaced' &&
+                  (review.replacement_manufacturer || review.replacement_model) && (
+                    <p className="mt-1 text-sm text-slate-700">
+                      Replacement:{' '}
+                      {[review.replacement_manufacturer, review.replacement_model]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </p>
+                  )}
+                {review.replacement_notes && (
+                  <p className="mt-1 text-xs text-slate-500">{review.replacement_notes}</p>
+                )}
+                {review.notes && (
+                  <p className="mt-1 break-words text-sm text-slate-700">{review.notes}</p>
+                )}
+                <div className="mt-2 flex gap-3">
+                  <button
+                    className="text-xs font-semibold text-slate-600 hover:underline"
+                    onClick={() => openEngReview(review.id)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="text-xs font-semibold text-red-600 hover:underline"
+                    onClick={() => {
+                      if (confirm('Delete this engineering review record?')) {
+                        deleteEngineeringReview(review.id);
+                      }
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       {view.priority === 'Issue' && view.alert_count === 0 && (
         <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
@@ -400,6 +496,15 @@ export function TrapDetailPage() {
         }}
         trapId={view.id}
         recordId={editMntId}
+      />
+      <EngineeringReviewFormModal
+        open={engReviewOpen}
+        onClose={() => {
+          setEngReviewOpen(false);
+          setEditEngReviewId(undefined);
+        }}
+        trapId={view.id}
+        recordId={editEngReviewId}
       />
     </div>
   );

@@ -10,6 +10,8 @@ import {
 } from 'react';
 import type {
   AppData,
+  EngineeringReviewOutcome,
+  EngineeringReviewRecord,
   Equipment,
   IssueType,
   MaintenanceAction,
@@ -27,7 +29,7 @@ import { uid } from '../utils/id';
 import { isSupabaseConfigured, STATE_ROW_ID, STATE_TABLE, supabase } from '../lib/supabase';
 import { useAuth } from '../auth/AuthContext';
 
-const STORAGE_KEY = 'steam-trap-data-v8';
+const STORAGE_KEY = 'steam-trap-data-v9';
 
 export type SyncStatus = 'local' | 'loading' | 'saving' | 'saved' | 'error';
 
@@ -52,6 +54,7 @@ function normalizeData(raw: AppData): AppData {
     pm_records: raw.pm_records ?? [],
     maintenance_records: raw.maintenance_records ?? [],
     shutdown_deferrals: raw.shutdown_deferrals ?? [],
+    engineering_reviews: raw.engineering_reviews ?? [],
     kpi_snapshots: raw.kpi_snapshots ?? [],
     data_version: raw.data_version ?? 1,
   };
@@ -169,6 +172,34 @@ interface SteamTrapContextValue {
 
   deleteShutdownDeferral: (id: string) => void;
 
+  addEngineeringReview: (
+    trapId: string,
+    input: {
+      review_date?: string;
+      reviewer?: string;
+      outcome: EngineeringReviewOutcome;
+      replacement_manufacturer?: string;
+      replacement_model?: string;
+      replacement_notes?: string;
+      notes?: string;
+    },
+  ) => EngineeringReviewRecord;
+
+  updateEngineeringReview: (
+    id: string,
+    input: {
+      review_date?: string;
+      reviewer?: string;
+      outcome?: EngineeringReviewOutcome;
+      replacement_manufacturer?: string;
+      replacement_model?: string;
+      replacement_notes?: string;
+      notes?: string;
+    },
+  ) => void;
+
+  deleteEngineeringReview: (id: string) => void;
+
   resetToSeed: () => void;
   clearAll: () => void;
 }
@@ -181,6 +212,7 @@ const EMPTY_DATA: AppData = {
   pm_records: [],
   maintenance_records: [],
   shutdown_deferrals: [],
+  engineering_reviews: [],
   kpi_snapshots: [],
   data_version: DATA_VERSION,
 };
@@ -323,6 +355,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
         pm_records: d.pm_records.filter((r) => !trapIds.has(r.trap_id)),
         maintenance_records: d.maintenance_records.filter((r) => !trapIds.has(r.trap_id)),
         shutdown_deferrals: d.shutdown_deferrals.filter((r) => !trapIds.has(r.trap_id)),
+        engineering_reviews: d.engineering_reviews.filter((r) => !trapIds.has(r.trap_id)),
       };
     });
   }, []);
@@ -347,6 +380,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
       pm_records: d.pm_records.filter((r) => r.trap_id !== id),
       maintenance_records: d.maintenance_records.filter((r) => r.trap_id !== id),
       shutdown_deferrals: d.shutdown_deferrals.filter((r) => r.trap_id !== id),
+      engineering_reviews: d.engineering_reviews.filter((r) => r.trap_id !== id),
     }));
   }, []);
 
@@ -594,6 +628,88 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const addEngineeringReview = useCallback(
+    (
+      trapId: string,
+      input: {
+        review_date?: string;
+        reviewer?: string;
+        outcome: EngineeringReviewOutcome;
+        replacement_manufacturer?: string;
+        replacement_model?: string;
+        replacement_notes?: string;
+        notes?: string;
+      },
+    ): EngineeringReviewRecord => {
+      const record: EngineeringReviewRecord = {
+        id: uid('er'),
+        trap_id: trapId,
+        review_date: (input.review_date ?? '').trim() || todayISO(),
+        reviewer: (input.reviewer ?? '').trim() || 'Unknown',
+        outcome: input.outcome,
+        replacement_manufacturer: (input.replacement_manufacturer ?? '').trim(),
+        replacement_model: (input.replacement_model ?? '').trim(),
+        replacement_notes: (input.replacement_notes ?? '').trim(),
+        notes: (input.notes ?? '').trim(),
+        created_at: new Date().toISOString(),
+      };
+      commitData((d) => ({
+        ...d,
+        engineering_reviews: [...d.engineering_reviews, record],
+      }));
+      return record;
+    },
+    [],
+  );
+
+  const updateEngineeringReview = useCallback(
+    (
+      id: string,
+      input: {
+        review_date?: string;
+        reviewer?: string;
+        outcome?: EngineeringReviewOutcome;
+        replacement_manufacturer?: string;
+        replacement_model?: string;
+        replacement_notes?: string;
+        notes?: string;
+      },
+    ) => {
+      commitData((d) => ({
+        ...d,
+        engineering_reviews: d.engineering_reviews.map((r) => {
+          if (r.id !== id) return r;
+          const outcome = input.outcome ?? r.outcome;
+          const showReplacement = outcome === 'Trap replaced';
+          return {
+            ...r,
+            review_date: (input.review_date ?? r.review_date).trim() || r.review_date,
+            reviewer: (input.reviewer ?? r.reviewer).trim() || r.reviewer,
+            outcome,
+            replacement_manufacturer: showReplacement
+              ? (input.replacement_manufacturer ?? r.replacement_manufacturer).trim()
+              : '',
+            replacement_model: showReplacement
+              ? (input.replacement_model ?? r.replacement_model).trim()
+              : '',
+            replacement_notes: showReplacement
+              ? (input.replacement_notes ?? r.replacement_notes).trim()
+              : '',
+            notes: (input.notes ?? r.notes).trim(),
+          };
+        }),
+      }));
+    },
+    [],
+  );
+
+  const deleteEngineeringReview = useCallback((id: string) => {
+    commitData((d) => ({
+      ...d,
+      engineering_reviews: d.engineering_reviews.filter((r) => r.id !== id),
+    }));
+  }, []);
+
   const resetToSeed = useCallback(
     () => setData(structuredClone(seedData)),
     [],
@@ -622,6 +738,9 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
       addShutdownDeferral,
       updateShutdownDeferral,
       deleteShutdownDeferral,
+      addEngineeringReview,
+      updateEngineeringReview,
+      deleteEngineeringReview,
       resetToSeed,
       clearAll,
     }),
@@ -646,6 +765,9 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
       addShutdownDeferral,
       updateShutdownDeferral,
       deleteShutdownDeferral,
+      addEngineeringReview,
+      updateEngineeringReview,
+      deleteEngineeringReview,
       resetToSeed,
       clearAll,
     ],

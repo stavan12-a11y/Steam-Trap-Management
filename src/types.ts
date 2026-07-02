@@ -103,6 +103,29 @@ export interface ShutdownDeferral {
   created_at: string;
 }
 
+export const ENGINEERING_REVIEW_OUTCOMES = [
+  'Reviewed — continue monitoring',
+  'Trap replaced',
+  'Sizing corrected',
+  'Root cause addressed',
+  'Other',
+] as const;
+export type EngineeringReviewOutcome = (typeof ENGINEERING_REVIEW_OUTCOMES)[number];
+
+/** Engineering review completed for a trap — clears the review alert until new failures accumulate. */
+export interface EngineeringReviewRecord {
+  id: string;
+  trap_id: string;
+  review_date: string;
+  reviewer: string;
+  outcome: EngineeringReviewOutcome;
+  replacement_manufacturer: string;
+  replacement_model: string;
+  replacement_notes: string;
+  notes: string;
+  created_at: string;
+}
+
 /** Daily fleet KPI snapshot for trend analytics and export. */
 export interface KPISnapshot {
   id: string;
@@ -135,6 +158,7 @@ export interface Database {
   pm_records: PMRecord[];
   maintenance_records: MaintenanceRecord[];
   shutdown_deferrals: ShutdownDeferral[];
+  engineering_reviews: EngineeringReviewRecord[];
   kpi_snapshots: KPISnapshot[];
   /** Bumped when seed schema or demo data changes — prompts refresh if stale. */
   data_version?: number;

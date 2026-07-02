@@ -38,15 +38,26 @@ const BANNER_STYLES: Record<TrapAlertType, string> = {
   repeat_failure: 'border-orange-200 bg-orange-50 text-orange-900',
 };
 
-export function TrapAlertBanner({ alert }: { alert: TrapAlert }) {
+export function TrapAlertBanner({
+  alert,
+  action,
+}: {
+  alert: TrapAlert;
+  action?: { label: string; onClick: () => void };
+}) {
   return (
     <div
-      className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${BANNER_STYLES[alert.type]}`}
+      className={`flex flex-wrap items-start justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${BANNER_STYLES[alert.type]}`}
     >
-      <div>
+      <div className="min-w-0 flex-1">
         <p className="font-semibold">{alert.label}</p>
         <p className="mt-0.5">{alert.message}</p>
       </div>
+      {action && (
+        <button className="btn-primary shrink-0 text-sm" onClick={action.onClick}>
+          {action.label}
+        </button>
+      )}
     </div>
   );
 }

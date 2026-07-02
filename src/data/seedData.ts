@@ -2,7 +2,7 @@ import type { Database, KPISnapshot, Trap, TrapTypeName } from '../types';
 import { CONNECTION_TYPES, DEFAULT_TRAP_DATASHEET } from '../types';
 import { buildKPISnapshot } from '../utils/kpiSnapshots';
 
-export const DATA_VERSION = 8;
+export const DATA_VERSION = 9;
 
 const TYPE_SPECS: Record<TrapTypeName, { manufacturers: string[]; models: string[] }> = {
   'Float & Thermostatic': {
@@ -334,6 +334,22 @@ export function buildSeedDatabase(): Database {
     },
   ];
 
+  const engineering_reviews: Database['engineering_reviews'] = [
+    {
+      id: 'er-0001',
+      trap_id: 'tr-0001',
+      review_date: daysAgo(100),
+      reviewer: 'J. Rivera',
+      outcome: 'Reviewed — continue monitoring',
+      replacement_manufacturer: '',
+      replacement_model: '',
+      replacement_notes: '',
+      notes:
+        'Seat wear pattern reviewed. Continue quarterly PM; escalate if blowing returns within 90 days.',
+      created_at: ts(100),
+    },
+  ];
+
   function buildHistoricalKPISnapshots(): KPISnapshot[] {
     const snaps: KPISnapshot[] = [];
     for (let d = 84; d >= 7; d -= 7) {
@@ -382,6 +398,7 @@ export function buildSeedDatabase(): Database {
     pm_records,
     maintenance_records,
     shutdown_deferrals,
+    engineering_reviews,
   };
 
   const historical = buildHistoricalKPISnapshots();

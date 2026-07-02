@@ -68,3 +68,21 @@ export function ShutdownDeferralBadge() {
     </span>
   );
 }
+
+const REVIEW_OUTCOME_STYLES: Record<string, string> = {
+  'Reviewed — continue monitoring': 'bg-violet-100 text-violet-800 ring-violet-600/20',
+  'Trap replaced': 'bg-indigo-100 text-indigo-800 ring-indigo-600/20',
+  'Sizing corrected': 'bg-sky-100 text-sky-800 ring-sky-600/20',
+  'Root cause addressed': 'bg-emerald-100 text-emerald-800 ring-emerald-600/20',
+  Other: 'bg-slate-100 text-slate-700 ring-slate-500/20',
+};
+
+export function EngineeringReviewOutcomeBadge({ outcome }: { outcome: string }) {
+  return (
+    <span
+      className={`${BASE} ${REVIEW_OUTCOME_STYLES[outcome] ?? 'bg-slate-100 text-slate-600 ring-slate-500/20'}`}
+    >
+      {outcome}
+    </span>
+  );
+}

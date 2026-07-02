@@ -1,5 +1,6 @@
 import type {
   Database,
+  EngineeringReviewRecord,
   Equipment,
   IssueType,
   MaintenanceRecord,
@@ -97,6 +98,29 @@ export function shutdownDeferralsForTrap(db: Database, trapId: string): Shutdown
     });
 }
 
+/** All engineering review records for a trap, newest first. */
+export function engineeringReviewsForTrap(
+  db: Database,
+  trapId: string,
+): EngineeringReviewRecord[] {
+  return (db.engineering_reviews ?? [])
+    .filter((r) => r.trap_id === trapId)
+    .sort((a, b) => {
+      if (a.review_date !== b.review_date) return a.review_date < b.review_date ? 1 : -1;
+      return a.created_at < b.created_at ? 1 : -1;
+    });
+}
+
+export function latestEngineeringReview(
+  reviews: EngineeringReviewRecord[],
+): EngineeringReviewRecord | null {
+  if (reviews.length === 0) return null;
+  return engineeringReviewsForTrap(
+    { engineering_reviews: reviews } as Database,
+    reviews[0].trap_id,
+  )[0];
+}
+
 /** Uniform PM interval — 3 months for every trap type. */
 export function pmIntervalDays(): number {
   return PM_INTERVAL_DAYS;
@@ -113,18 +137,33 @@ export function failureCountInWindow(
   ).length;
 }
 
-/** Derive engineering review flag from failure history. */
+/** Derive engineering review flag from failure history and completed reviews. */
 export function evaluateEngineeringReview(
   records: PMRecord[],
+  reviews: EngineeringReviewRecord[] = [],
   today = todayISO(),
 ): { required: boolean; reason: string | null; failure_count_36mo: number } {
   const windowStart = monthsAgoISO(ENGINEERING_REVIEW_WINDOW_MONTHS, today);
   const failure_count_36mo = failureCountInWindow(records, windowStart, today);
+  const lastReview = reviews.length > 0 ? reviews[0] : null;
 
-  if (failure_count_36mo >= ENGINEERING_REVIEW_FAILURE_THRESHOLD) {
+  const failuresSinceReview = lastReview
+    ? records.filter(
+        (r) =>
+          r.status === 'Issue' &&
+          r.date > lastReview.review_date &&
+          r.date >= windowStart &&
+          r.date <= today,
+      ).length
+    : failure_count_36mo;
+
+  if (failuresSinceReview >= ENGINEERING_REVIEW_FAILURE_THRESHOLD) {
+    const reason = lastReview
+      ? `${failuresSinceReview} failures since engineering review on ${lastReview.review_date} — new review recommended`
+      : `${failure_count_36mo} failures in the last ${ENGINEERING_REVIEW_WINDOW_MONTHS} months — engineering review recommended`;
     return {
       required: true,
-      reason: `${failure_count_36mo} failures in the last ${ENGINEERING_REVIEW_WINDOW_MONTHS} months — engineering review recommended`,
+      reason,
       failure_count_36mo,
     };
   }
@@ -170,11 +209,12 @@ export function evaluateRepeatFailure(
 /** Build all smart alerts for a trap. */
 export function buildTrapAlerts(
   records: PMRecord[],
+  reviews: EngineeringReviewRecord[] = [],
   today = todayISO(),
 ): TrapAlert[] {
   const alerts: TrapAlert[] = [];
 
-  const eng = evaluateEngineeringReview(records, today);
+  const eng = evaluateEngineeringReview(records, reviews, today);
   if (eng.required && eng.reason) {
     alerts.push({
       type: 'engineering_review',
@@ -216,10 +256,11 @@ export function buildTrapView(
   today = todayISO(),
 ): TrapView {
   const records = db.pm_records.filter((r) => r.trap_id === trap.id);
+  const reviews = engineeringReviewsForTrap(db, trap.id);
   const latest = latestRecord(records);
   const interval = pmIntervalDays();
-  const review = evaluateEngineeringReview(records, today);
-  const alerts = buildTrapAlerts(records, today);
+  const review = evaluateEngineeringReview(records, reviews, today);
+  const alerts = buildTrapAlerts(records, reviews, today);
 
   const last_pm_date = latest ? latest.date : null;
   const status = latest ? latest.status : null;

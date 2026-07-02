@@ -3,6 +3,7 @@ import type { AppData } from '../types';
 import { delta, sortedKPISnapshots } from './kpiSnapshots';
 import {
   allTrapViews,
+  engineeringReviewsForTrap,
   maintenanceForTrap,
   recordsForTrap,
   shutdownDeferralsForTrap,
@@ -58,7 +59,7 @@ export const EXPORT_OPTIONS: ExportOption[] = [
   {
     key: 'inspection_history',
     label: 'Inspection History',
-    description: 'PM inspections and equipment shutdown deferrals',
+    description: 'PM inspections, shutdown deferrals, and engineering reviews',
   },
   {
     key: 'maintenance_history',
@@ -143,6 +144,26 @@ export function buildInspectionSheet(data: AppData, trapId?: string): ExportShee
         sd.pm_due_date,
         sd.technician,
         sd.notes,
+      ]);
+    }
+    for (const er of engineeringReviewsForTrap(data, trap.id)) {
+      const replacement =
+        er.outcome === 'Trap replaced'
+          ? [er.replacement_manufacturer, er.replacement_model].filter(Boolean).join(' ')
+          : '';
+      rows.push([
+        'Engineering Review',
+        er.review_date,
+        trap.tag,
+        trap.type,
+        trap.location,
+        eq?.name ?? '',
+        eq?.area ?? '',
+        er.outcome,
+        replacement,
+        '',
+        er.reviewer,
+        [er.replacement_notes, er.notes].filter(Boolean).join(' — '),
       ]);
     }
   }
