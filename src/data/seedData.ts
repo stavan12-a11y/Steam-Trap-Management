@@ -1,7 +1,8 @@
-import type { Database, Trap, TrapTypeName } from '../types';
+import type { Database, KPISnapshot, Trap, TrapTypeName } from '../types';
 import { CONNECTION_TYPES, DEFAULT_TRAP_DATASHEET } from '../types';
+import { buildKPISnapshot } from '../utils/kpiSnapshots';
 
-export const DATA_VERSION = 5;
+export const DATA_VERSION = 6;
 
 const TYPE_SPECS: Record<TrapTypeName, { manufacturers: string[]; models: string[] }> = {
   'Float & Thermostatic': {
@@ -333,12 +334,64 @@ export function buildSeedDatabase(): Database {
     },
   ];
 
-  return {
+  function buildHistoricalKPISnapshots(): KPISnapshot[] {
+    const snaps: KPISnapshot[] = [];
+    for (let d = 84; d >= 7; d -= 7) {
+      const date = daysAgo(d);
+      const progress = (84 - d) / 84;
+      const active = Math.max(4, Math.round(14 - progress * 4 + (d % 3)));
+      const overdue = Math.max(2, Math.round(10 - progress * 4));
+      const reliability = Math.min(97, Math.round(65 + progress * 27));
+      snaps.push({
+        id: `kpi-hist-${date}`,
+        date,
+        total_traps: 36 + Math.round(progress * 2),
+        active_issues: active,
+        overdue_pm: overdue,
+        fleet_reliability_rate: reliability,
+        due_soon_pm: 2 + (d % 4),
+        on_track_pm: 18 + Math.round(progress * 8),
+        never_inspected: Math.max(1, 4 - Math.round(progress * 2)),
+        healthy_count: 12 + Math.round(progress * 6),
+        upcoming_count: 2,
+        issue_priority_count: active,
+        blowing_issues: Math.round(active * 0.35),
+        blocked_issues: Math.round(active * 0.25),
+        leak_issues: Math.round(active * 0.2),
+        cycling_issues: Math.max(0, active - Math.round(active * 0.8)),
+        engineering_review_count: progress > 0.5 ? 2 : 1,
+        smart_alert_count: progress > 0.6 ? 3 : 2,
+        priority_breakdown: {
+          Issue: active,
+          Overdue: overdue,
+          Upcoming: 2,
+          Healthy: 12 + Math.round(progress * 6),
+          'Never inspected': Math.max(1, 4 - Math.round(progress * 2)),
+        },
+        created_at: ts(d),
+      });
+    }
+    return snaps;
+  }
+
+  const partial: Omit<Database, 'kpi_snapshots' | 'data_version'> = {
     equipment,
     traps,
     pm_records,
     maintenance_records,
     shutdown_deferrals,
+  };
+
+  const historical = buildHistoricalKPISnapshots();
+  const todaySnap = buildKPISnapshot({ ...partial, kpi_snapshots: historical });
+  const kpi_snapshots = [
+    ...historical.filter((s) => s.date !== todaySnap.date),
+    todaySnap,
+  ].sort((a, b) => a.date.localeCompare(b.date));
+
+  return {
+    ...partial,
+    kpi_snapshots,
     data_version: DATA_VERSION,
   };
 }

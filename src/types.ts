@@ -103,12 +103,37 @@ export interface ShutdownDeferral {
   created_at: string;
 }
 
+/** Daily fleet KPI snapshot for trend analytics and export. */
+export interface KPISnapshot {
+  id: string;
+  date: string;
+  total_traps: number;
+  active_issues: number;
+  overdue_pm: number;
+  fleet_reliability_rate: number;
+  due_soon_pm: number;
+  on_track_pm: number;
+  never_inspected: number;
+  healthy_count: number;
+  upcoming_count: number;
+  issue_priority_count: number;
+  blowing_issues: number;
+  blocked_issues: number;
+  leak_issues: number;
+  cycling_issues: number;
+  engineering_review_count: number;
+  smart_alert_count: number;
+  priority_breakdown: Record<string, number>;
+  created_at: string;
+}
+
 export interface Database {
   equipment: Equipment[];
   traps: Trap[];
   pm_records: PMRecord[];
   maintenance_records: MaintenanceRecord[];
   shutdown_deferrals: ShutdownDeferral[];
+  kpi_snapshots: KPISnapshot[];
   /** Bumped when seed schema or demo data changes — prompts refresh if stale. */
   data_version?: number;
 }

@@ -22,11 +22,12 @@ import type {
 import { ISSUE_TYPES, DEFAULT_TRAP_DATASHEET } from '../types';
 import { seedData, DATA_VERSION } from '../data/seedData';
 import { todayISO } from '../utils/logic';
+import { upsertTodayKPISnapshot } from '../utils/kpiSnapshots';
 import { uid } from '../utils/id';
 import { isSupabaseConfigured, STATE_ROW_ID, STATE_TABLE, supabase } from '../lib/supabase';
 import { useAuth } from '../auth/AuthContext';
 
-const STORAGE_KEY = 'steam-trap-data-v5';
+const STORAGE_KEY = 'steam-trap-data-v6';
 
 export type SyncStatus = 'local' | 'loading' | 'saving' | 'saved' | 'error';
 
@@ -51,6 +52,7 @@ function normalizeData(raw: AppData): AppData {
     pm_records: raw.pm_records ?? [],
     maintenance_records: raw.maintenance_records ?? [],
     shutdown_deferrals: raw.shutdown_deferrals ?? [],
+    kpi_snapshots: raw.kpi_snapshots ?? [],
     data_version: raw.data_version ?? 1,
   };
 }
@@ -176,6 +178,7 @@ const EMPTY_DATA: AppData = {
   pm_records: [],
   maintenance_records: [],
   shutdown_deferrals: [],
+  kpi_snapshots: [],
   data_version: DATA_VERSION,
 };
 
@@ -190,6 +193,15 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(cloud ? 'loading' : 'local');
   const applyingRemote = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const commitData = useCallback((updater: (d: AppData) => AppData) => {
+    setData((d) => upsertTodayKPISnapshot(updater(d)));
+  }, []);
+
+  useEffect(() => {
+    if (cloud) return;
+    setData((d) => upsertTodayKPISnapshot(d));
+  }, [cloud]);
 
   useEffect(() => {
     if (cloud) return;
@@ -285,21 +297,22 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
 
   const addEquipment = useCallback((e: Omit<Equipment, 'id'>) => {
     const created: Equipment = { ...e, id: uid('eq') };
-    setData((d) => ({ ...d, equipment: [...d.equipment, created] }));
+    commitData((d) => ({ ...d, equipment: [...d.equipment, created] }));
     return created;
   }, []);
 
   const updateEquipment = useCallback((id: string, patch: Partial<Omit<Equipment, 'id'>>) => {
-    setData((d) => ({
+    commitData((d) => ({
       ...d,
       equipment: d.equipment.map((e) => (e.id === id ? { ...e, ...patch } : e)),
     }));
   }, []);
 
   const deleteEquipment = useCallback((id: string) => {
-    setData((d) => {
+    commitData((d) => {
       const trapIds = new Set(d.traps.filter((t) => t.equipment_id === id).map((t) => t.id));
       return {
+        ...d,
         equipment: d.equipment.filter((e) => e.id !== id),
         traps: d.traps.filter((t) => t.equipment_id !== id),
         pm_records: d.pm_records.filter((r) => !trapIds.has(r.trap_id)),
@@ -311,19 +324,19 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
 
   const addTrap = useCallback((t: Omit<Trap, 'id'>) => {
     const created: Trap = { ...DEFAULT_TRAP_DATASHEET, ...t, id: uid('tr') };
-    setData((d) => ({ ...d, traps: [...d.traps, created] }));
+    commitData((d) => ({ ...d, traps: [...d.traps, created] }));
     return created;
   }, []);
 
   const updateTrap = useCallback((id: string, patch: Partial<Omit<Trap, 'id'>>) => {
-    setData((d) => ({
+    commitData((d) => ({
       ...d,
       traps: d.traps.map((t) => (t.id === id ? { ...t, ...patch } : t)),
     }));
   }, []);
 
   const deleteTrap = useCallback((id: string) => {
-    setData((d) => ({
+    commitData((d) => ({
       ...d,
       traps: d.traps.filter((t) => t.id !== id),
       pm_records: d.pm_records.filter((r) => r.trap_id !== id),
@@ -348,7 +361,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
         error: 'Trap not found',
       };
 
-      setData((d) => {
+      commitData((d) => {
         const trap = d.traps.find((t) => t.id === trapId);
         if (!trap) return d;
         if (input.status === 'Issue') {
@@ -391,7 +404,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
     ): { ok: true } | { ok: false; error: string } => {
       let result: { ok: true } | { ok: false; error: string } = { ok: true };
 
-      setData((d) => {
+      commitData((d) => {
         const existing = d.pm_records.find((r) => r.id === id);
         if (!existing) {
           result = { ok: false, error: 'PM record not found' };
@@ -432,7 +445,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
   );
 
   const deletePM = useCallback((id: string) => {
-    setData((d) => ({
+    commitData((d) => ({
       ...d,
       pm_records: d.pm_records.filter((r) => r.id !== id),
     }));
@@ -463,7 +476,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
         notes: (input.notes ?? '').trim(),
         created_at: new Date().toISOString(),
       };
-      setData((d) => ({
+      commitData((d) => ({
         ...d,
         maintenance_records: [...d.maintenance_records, record],
       }));
@@ -485,7 +498,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
         notes?: string;
       },
     ) => {
-      setData((d) => ({
+      commitData((d) => ({
         ...d,
         maintenance_records: d.maintenance_records.map((r) =>
           r.id === id
@@ -507,7 +520,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
   );
 
   const deleteMaintenance = useCallback((id: string) => {
-    setData((d) => ({
+    commitData((d) => ({
       ...d,
       maintenance_records: d.maintenance_records.filter((r) => r.id !== id),
     }));
@@ -532,7 +545,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
         notes: (input.notes ?? '').trim(),
         created_at: new Date().toISOString(),
       };
-      setData((d) => ({
+      commitData((d) => ({
         ...d,
         shutdown_deferrals: [...d.shutdown_deferrals, record],
       }));
@@ -551,7 +564,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
         notes?: string;
       },
     ) => {
-      setData((d) => ({
+      commitData((d) => ({
         ...d,
         shutdown_deferrals: d.shutdown_deferrals.map((r) =>
           r.id === id
@@ -570,7 +583,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
   );
 
   const deleteShutdownDeferral = useCallback((id: string) => {
-    setData((d) => ({
+    commitData((d) => ({
       ...d,
       shutdown_deferrals: d.shutdown_deferrals.filter((r) => r.id !== id),
     }));

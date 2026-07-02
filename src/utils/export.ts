@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import type { AppData } from '../types';
 import { toCSV } from './csv';
+import { delta, sortedKPISnapshots } from './kpiSnapshots';
 import {
   activeIssuesByType,
   allTrapViews,
@@ -20,6 +21,70 @@ export interface ExportSheet {
   headers: string[];
   rows: unknown[][];
 }
+
+export type ExportOptionKey =
+  | 'current_kpis'
+  | 'fleet_reliability_history'
+  | 'active_issues_history'
+  | 'overdue_pm_history'
+  | 'pm_schedule_history'
+  | 'trap_register'
+  | 'inspection_history'
+  | 'maintenance_history';
+
+export interface ExportOption {
+  key: ExportOptionKey;
+  label: string;
+  description: string;
+  historical?: boolean;
+}
+
+export const EXPORT_OPTIONS: ExportOption[] = [
+  {
+    key: 'current_kpis',
+    label: 'Current KPIs',
+    description: 'Fleet KPIs and breakdowns as of today',
+  },
+  {
+    key: 'fleet_reliability_history',
+    label: 'Fleet Reliability History',
+    description: 'Date-wise reliability % with day-over-day change',
+    historical: true,
+  },
+  {
+    key: 'active_issues_history',
+    label: 'Active Issues History',
+    description: 'Date-wise active issue counts and breakdown by type',
+    historical: true,
+  },
+  {
+    key: 'overdue_pm_history',
+    label: 'Overdue PM History',
+    description: 'Date-wise overdue PM counts and change vs prior snapshot',
+    historical: true,
+  },
+  {
+    key: 'pm_schedule_history',
+    label: 'PM Schedule History',
+    description: 'Date-wise on track, due soon, overdue, and never inspected counts',
+    historical: true,
+  },
+  {
+    key: 'trap_register',
+    label: 'Trap Register',
+    description: 'All traps with datasheet fields and current status',
+  },
+  {
+    key: 'inspection_history',
+    label: 'Inspection History',
+    description: 'PM inspections and equipment shutdown deferrals',
+  },
+  {
+    key: 'maintenance_history',
+    label: 'Maintenance History',
+    description: 'Repairs, maintenance, and replacement records',
+  },
+];
 
 function eqMaps(data: AppData) {
   const eqById = new Map(data.equipment.map((e) => [e.id, e]));
@@ -245,13 +310,130 @@ export function buildTrapRegisterSheet(data: AppData): ExportSheet {
   return { name: 'Trap Register', headers, rows };
 }
 
-export function buildFullWorkbookSheets(data: AppData): ExportSheet[] {
-  return [
-    buildKPISheet(data),
-    buildTrapRegisterSheet(data),
-    buildInspectionSheet(data),
-    buildMaintenanceSheet(data),
+export function buildFleetReliabilityHistorySheet(data: AppData): ExportSheet {
+  const snapshots = sortedKPISnapshots(data);
+  const headers = [
+    'Date',
+    'Total Traps',
+    'Active Issues',
+    'Fleet Reliability %',
+    'Change vs Prior (%)',
+    'Change vs Prior (Issues)',
   ];
+
+  const rows = snapshots.map((s, i) => {
+    const prev = i > 0 ? snapshots[i - 1] : undefined;
+    return [
+      s.date,
+      s.total_traps,
+      s.active_issues,
+      s.fleet_reliability_rate,
+      delta(s.fleet_reliability_rate, prev?.fleet_reliability_rate),
+      delta(s.active_issues, prev?.active_issues),
+    ];
+  });
+
+  return { name: 'Fleet Reliability History', headers, rows };
+}
+
+export function buildActiveIssuesHistorySheet(data: AppData): ExportSheet {
+  const snapshots = sortedKPISnapshots(data);
+  const headers = [
+    'Date',
+    'Active Issues',
+    'Blowing',
+    'Blocked',
+    'Leak',
+    'Cycling',
+    'Change vs Prior',
+  ];
+
+  const rows = snapshots.map((s, i) => {
+    const prev = i > 0 ? snapshots[i - 1] : undefined;
+    return [
+      s.date,
+      s.active_issues,
+      s.blowing_issues,
+      s.blocked_issues,
+      s.leak_issues,
+      s.cycling_issues,
+      delta(s.active_issues, prev?.active_issues),
+    ];
+  });
+
+  return { name: 'Active Issues History', headers, rows };
+}
+
+export function buildOverduePMHistorySheet(data: AppData): ExportSheet {
+  const snapshots = sortedKPISnapshots(data);
+  const headers = ['Date', 'Overdue PM', 'Due Soon PM', 'Change vs Prior (Overdue)'];
+
+  const rows = snapshots.map((s, i) => {
+    const prev = i > 0 ? snapshots[i - 1] : undefined;
+    return [s.date, s.overdue_pm, s.due_soon_pm, delta(s.overdue_pm, prev?.overdue_pm)];
+  });
+
+  return { name: 'Overdue PM History', headers, rows };
+}
+
+export function buildPMScheduleHistorySheet(data: AppData): ExportSheet {
+  const snapshots = sortedKPISnapshots(data);
+  const headers = [
+    'Date',
+    'On Track',
+    'Due Soon',
+    'Overdue',
+    'Never Inspected',
+    'Healthy',
+    'Upcoming',
+  ];
+
+  const rows = snapshots.map((s) => [
+    s.date,
+    s.on_track_pm,
+    s.due_soon_pm,
+    s.overdue_pm,
+    s.never_inspected,
+    s.healthy_count,
+    s.upcoming_count,
+  ]);
+
+  return { name: 'PM Schedule History', headers, rows };
+}
+
+const SHEET_BUILDERS: Record<ExportOptionKey, (data: AppData) => ExportSheet> = {
+  current_kpis: buildKPISheet,
+  fleet_reliability_history: buildFleetReliabilityHistorySheet,
+  active_issues_history: buildActiveIssuesHistorySheet,
+  overdue_pm_history: buildOverduePMHistorySheet,
+  pm_schedule_history: buildPMScheduleHistorySheet,
+  trap_register: buildTrapRegisterSheet,
+  inspection_history: (data) => buildInspectionSheet(data),
+  maintenance_history: (data) => buildMaintenanceSheet(data),
+};
+
+export function buildSheetsFromOptions(data: AppData, options: ExportOptionKey[]): ExportSheet[] {
+  return options.map((key) => SHEET_BUILDERS[key](data));
+}
+
+export function exportSelectedWorkbookExcel(data: AppData, options: ExportOptionKey[]) {
+  if (options.length === 0) return;
+  downloadExcel(`steam-trap-export-${todayISO()}.xlsx`, buildSheetsFromOptions(data, options));
+}
+
+export function exportSelectedWorkbookCSV(data: AppData, options: ExportOptionKey[]) {
+  if (options.length === 0) return;
+  const parts = buildSheetsFromOptions(data, options).map(
+    (s) => `=== ${s.name} ===\r\n${toCSV(s.headers, s.rows)}`,
+  );
+  downloadCSV(`steam-trap-export-${todayISO()}.csv`, parts.join('\r\n\r\n'));
+}
+
+export function buildFullWorkbookSheets(data: AppData): ExportSheet[] {
+  return buildSheetsFromOptions(
+    data,
+    EXPORT_OPTIONS.map((o) => o.key),
+  );
 }
 
 export function exportFullWorkbookCSV(data: AppData) {

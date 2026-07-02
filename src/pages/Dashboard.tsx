@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, FileSpreadsheet, Plus, RotateCcw, Table2 } from 'lucide-react';
 import { isStaleData, useSteamTrap } from '../store/SteamTrapContext';
-import { allTrapViews, computeKPIs, equipmentRollups, todayISO } from '../utils/logic';
-import { exportFullWorkbookExcel, exportSheetCSV, buildKPISheet } from '../utils/export';
+import { allTrapViews, computeKPIs, equipmentRollups } from '../utils/logic';
+import { ExportOptionsModal } from '../components/ExportOptionsModal';
 import { KPIGrid } from '../components/KPIGrid';
 import { KPIChartsPanel } from '../components/KPIChartsPanel';
 import { EquipmentCard } from '../components/EquipmentCard';
@@ -14,6 +14,7 @@ export function Dashboard() {
   const { data, resetToSeed } = useSteamTrap();
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const kpis = useMemo(() => computeKPIs(allTrapViews(data)), [data]);
   const rollups = useMemo(() => equipmentRollups(data), [data]);
@@ -53,22 +54,11 @@ export function Dashboard() {
         <div className="flex flex-wrap gap-2">
           <Link to="/reporting" className="btn-secondary">
             <Table2 className="h-4 w-4" />
-            All exports
+            Reporting
           </Link>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => exportSheetCSV(buildKPISheet(data), `kpis-${todayISO()}.csv`)}
-          >
-            Export KPIs (CSV)
-          </button>
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => exportFullWorkbookExcel(data)}
-          >
+          <button type="button" className="btn-primary" onClick={() => setExportOpen(true)}>
             <FileSpreadsheet className="h-4 w-4" />
-            Export workbook (Excel)
+            Export data…
           </button>
         </div>
       </div>
@@ -120,6 +110,7 @@ export function Dashboard() {
         equipmentId={editId ?? undefined}
         onClose={() => setEditId(null)}
       />
+      <ExportOptionsModal open={exportOpen} onClose={() => setExportOpen(false)} data={data} />
     </div>
   );
 }
