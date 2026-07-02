@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { AlertTriangle, FileSpreadsheet, Plus, RotateCcw, Table2 } from 'lucide-react';
+import { AlertTriangle, FileSpreadsheet, Plus, RotateCcw } from 'lucide-react';
 import { isStaleData, useSteamTrap } from '../store/SteamTrapContext';
 import { allTrapViews, computeKPIs, equipmentRollups } from '../utils/logic';
 import { ExportOptionsModal } from '../components/ExportOptionsModal';
@@ -52,10 +51,6 @@ export function Dashboard() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link to="/reporting" className="btn-secondary">
-            <Table2 className="h-4 w-4" />
-            Reporting
-          </Link>
           <button type="button" className="btn-primary" onClick={() => setExportOpen(true)}>
             <FileSpreadsheet className="h-4 w-4" />
             Export data…

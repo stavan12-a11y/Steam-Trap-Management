@@ -19,7 +19,6 @@ const DEFAULT_SELECTED: ExportOptionKey[] = [
   'fleet_reliability_history',
   'active_issues_history',
   'overdue_pm_history',
-  'equipment_shutdown_deferrals',
   'trap_register',
   'inspection_history',
 ];
