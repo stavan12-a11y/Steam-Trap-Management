@@ -195,167 +195,166 @@ export function TrapDetailPage() {
         </div>
       </div>
 
-      <div className="card p-5">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">
-            Inspection History
-          </h3>
-          <span className="text-xs text-slate-400">{history.length} records</span>
-        </div>
-        {history.length === 0 ? (
-          <p className="text-sm text-slate-500">No inspections recorded yet.</p>
-        ) : (
-          <ul className="space-y-4 border-l-2 border-slate-200 pl-4">
-            {history.map((entry) => {
-              if (entry.kind === 'pm') {
-                const r = entry.record;
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
+        <div className="card p-5">
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">
+              Inspection History
+            </h3>
+            <span className="shrink-0 text-xs text-slate-400">{history.length} records</span>
+          </div>
+          {history.length === 0 ? (
+            <p className="text-sm text-slate-500">No inspections recorded yet.</p>
+          ) : (
+            <ul className="max-h-[32rem] space-y-4 overflow-y-auto border-l-2 border-slate-200 pl-4 pr-1">
+              {history.map((entry) => {
+                if (entry.kind === 'pm') {
+                  const r = entry.record;
+                  return (
+                    <li key={r.id} className="relative min-w-0">
+                      <span
+                        className={`absolute -left-[21px] top-1 h-3 w-3 rounded-full ring-2 ring-white ${
+                          r.status === 'Issue' ? 'bg-red-500' : 'bg-emerald-500'
+                        }`}
+                      />
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-sm font-semibold">{r.date}</span>
+                          <StatusBadge status={r.status} issueType={r.issue_type} />
+                        </div>
+                        <p className="text-xs text-slate-500">Technician: {r.technician}</p>
+                        {r.notes && (
+                          <p className="break-words text-sm text-slate-700">{r.notes}</p>
+                        )}
+                        <div className="flex gap-3">
+                          <button
+                            className="text-xs font-semibold text-slate-600 hover:underline"
+                            onClick={() => openPm(r.id)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="text-xs font-semibold text-red-600 hover:underline"
+                            onClick={() => {
+                              if (confirm('Delete this PM record?')) deletePM(r.id);
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                }
+
+                const sd = entry.record;
                 return (
-                  <li key={r.id} className="relative">
-                    <span
-                      className={`absolute -left-[21px] top-1 h-3 w-3 rounded-full ring-2 ring-white ${
-                        r.status === 'Issue' ? 'bg-red-500' : 'bg-emerald-500'
-                      }`}
-                    />
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-sm font-semibold">{r.date}</span>
-                      <div className="flex items-center gap-2">
-                        <StatusBadge status={r.status} issueType={r.issue_type} />
+                  <li key={sd.id} className="relative min-w-0">
+                    <span className="absolute -left-[21px] top-1 h-3 w-3 rounded-full bg-sky-500 ring-2 ring-white" />
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-sm font-semibold">{sd.recorded_date}</span>
+                        <ShutdownDeferralBadge />
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        PM due: <span className="font-mono">{sd.pm_due_date}</span> · Technician:{' '}
+                        {sd.technician}
+                      </p>
+                      {sd.notes && (
+                        <p className="break-words text-sm text-slate-700">{sd.notes}</p>
+                      )}
+                      <div className="flex gap-3">
                         <button
                           className="text-xs font-semibold text-slate-600 hover:underline"
-                          onClick={() => openPm(r.id)}
+                          onClick={() => openPm(undefined, sd.id)}
                         >
                           Edit
                         </button>
                         <button
                           className="text-xs font-semibold text-red-600 hover:underline"
                           onClick={() => {
-                            if (confirm('Delete this PM record?')) deletePM(r.id);
+                            if (confirm('Delete this shutdown deferral?')) deleteShutdownDeferral(sd.id);
                           }}
                         >
                           Delete
                         </button>
                       </div>
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">Technician: {r.technician}</p>
-                    {r.notes && <p className="mt-2 text-sm text-slate-700">{r.notes}</p>}
                   </li>
                 );
-              }
-
-              const sd = entry.record;
-              return (
-                <li key={sd.id} className="relative">
-                  <span className="absolute -left-[21px] top-1 h-3 w-3 rounded-full bg-sky-500 ring-2 ring-white" />
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-sm font-semibold">{sd.recorded_date}</span>
-                    <div className="flex items-center gap-2">
-                      <ShutdownDeferralBadge />
-                      <button
-                        className="text-xs font-semibold text-slate-600 hover:underline"
-                        onClick={() => openPm(undefined, sd.id)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="text-xs font-semibold text-red-600 hover:underline"
-                        onClick={() => {
-                          if (confirm('Delete this shutdown deferral?')) deleteShutdownDeferral(sd.id);
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                  <p className="mt-1 text-xs text-slate-500">
-                    PM due: <span className="font-mono">{sd.pm_due_date}</span> · Technician:{' '}
-                    {sd.technician}
-                  </p>
-                  {sd.notes && <p className="mt-2 text-sm text-slate-700">{sd.notes}</p>}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-
-      <div className="card p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">
-              Maintenance & Replacement History
-            </h3>
-            <p className="mt-0.5 text-xs text-slate-500">
-              Repairs, preventive maintenance, and trap replacements
-            </p>
-          </div>
-          <button className="btn-secondary text-sm" onClick={() => openMnt()}>
-            <Plus className="h-4 w-4" />
-            Add record
-          </button>
+              })}
+            </ul>
+          )}
         </div>
 
-        {maintenance.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-slate-200 py-8 text-center">
-            <Wrench className="mx-auto h-8 w-8 text-slate-300" />
-            <p className="mt-2 text-sm text-slate-500">No maintenance records yet.</p>
-            <button className="btn-primary mt-3 inline-flex text-sm" onClick={() => openMnt()}>
-              Record first maintenance
+        <div className="card p-5">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">
+                Maintenance & Replacement History
+              </h3>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Repairs, preventive maintenance, and trap replacements
+              </p>
+            </div>
+            <button className="btn-secondary shrink-0 text-sm" onClick={() => openMnt()}>
+              <Plus className="h-4 w-4" />
+              Add record
             </button>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  <th className="px-3 py-2">Date</th>
-                  <th className="px-3 py-2">Action</th>
-                  <th className="px-3 py-2">Description</th>
-                  <th className="px-3 py-2">Parts</th>
-                  <th className="px-3 py-2">Technician</th>
-                  <th className="px-3 py-2 text-right">Cost</th>
-                  <th className="px-3 py-2" />
-                </tr>
-              </thead>
-              <tbody>
-                {maintenance.map((m) => (
-                  <tr key={m.id} className="border-b border-slate-100">
-                    <td className="px-3 py-2.5 font-mono text-xs">{m.date}</td>
-                    <td className="px-3 py-2.5">
-                      <MaintenanceActionBadge action={m.action} />
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <p>{m.description}</p>
-                      {m.notes && <p className="mt-0.5 text-xs text-slate-500">{m.notes}</p>}
-                    </td>
-                    <td className="px-3 py-2.5 text-slate-600">{m.parts_replaced || '—'}</td>
-                    <td className="px-3 py-2.5 text-slate-600">{m.technician}</td>
-                    <td className="px-3 py-2.5 text-right font-mono text-xs">
-                      {m.cost != null ? `$${m.cost.toFixed(2)}` : '—'}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          className="text-xs font-semibold text-slate-600 hover:underline"
-                          onClick={() => openMnt(m.id)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="text-xs font-semibold text-red-600 hover:underline"
-                          onClick={() => {
-                            if (confirm('Delete this maintenance record?')) deleteMaintenance(m.id);
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+
+          {maintenance.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-200 py-8 text-center">
+              <Wrench className="mx-auto h-8 w-8 text-slate-300" />
+              <p className="mt-2 text-sm text-slate-500">No maintenance records yet.</p>
+              <button className="btn-primary mt-3 inline-flex text-sm" onClick={() => openMnt()}>
+                Record first maintenance
+              </button>
+            </div>
+          ) : (
+            <ul className="max-h-[32rem] space-y-3 overflow-y-auto pr-1">
+              {maintenance.map((m) => (
+                <li key={m.id} className="rounded-lg border border-slate-200 p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-xs font-semibold">{m.date}</span>
+                    <MaintenanceActionBadge action={m.action} />
+                    {m.cost != null && (
+                      <span className="ml-auto font-mono text-xs text-slate-600">
+                        ${m.cost.toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-2 break-words text-sm text-slate-800">{m.description}</p>
+                  {m.parts_replaced && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Parts: {m.parts_replaced}
+                    </p>
+                  )}
+                  <p className="mt-1 text-xs text-slate-500">Technician: {m.technician}</p>
+                  {m.notes && (
+                    <p className="mt-1 break-words text-xs text-slate-500">{m.notes}</p>
+                  )}
+                  <div className="mt-2 flex gap-3">
+                    <button
+                      className="text-xs font-semibold text-slate-600 hover:underline"
+                      onClick={() => openMnt(m.id)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="text-xs font-semibold text-red-600 hover:underline"
+                      onClick={() => {
+                        if (confirm('Delete this maintenance record?')) deleteMaintenance(m.id);
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       {view.priority === 'Issue' && view.alert_count === 0 && (
