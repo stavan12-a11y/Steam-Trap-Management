@@ -1,21 +1,31 @@
 import { useMemo, useState } from 'react';
 import { AlertTriangle, FileSpreadsheet, Plus, RotateCcw } from 'lucide-react';
 import { isStaleData, useSteamTrap } from '../store/SteamTrapContext';
-import { allTrapViews, computeKPIs, equipmentRollups } from '../utils/logic';
+import { allTrapViews, computeKPIs, equipmentRollups, sortByPriority } from '../utils/logic';
+import type { KPIClickKey } from '../utils/kpiFilters';
+import { trapsForKpi } from '../utils/kpiFilters';
 import { ExportOptionsModal } from '../components/ExportOptionsModal';
 import { KPIGrid } from '../components/KPIGrid';
+import { KPITrapListModal } from '../components/KPITrapListModal';
 import { KPIChartsPanel } from '../components/KPIChartsPanel';
 import { EquipmentCard } from '../components/EquipmentCard';
 import { PriorityQueuePanel } from '../components/PriorityQueuePanel';
 import { EquipmentFormModal } from '../components/forms/EquipmentFormModal';
+import { DATA_VERSION } from '../data/seedData';
 
 export function Dashboard() {
   const { data, resetToSeed } = useSteamTrap();
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [kpiModalKey, setKpiModalKey] = useState<KPIClickKey | null>(null);
 
-  const kpis = useMemo(() => computeKPIs(allTrapViews(data), data), [data]);
+  const views = useMemo(() => sortByPriority(allTrapViews(data)), [data]);
+  const kpis = useMemo(() => computeKPIs(views, data), [views, data]);
+  const kpiTraps = useMemo(
+    () => (kpiModalKey ? trapsForKpi(views, kpiModalKey, data) : []),
+    [views, kpiModalKey, data],
+  );
   const rollups = useMemo(() => equipmentRollups(data), [data]);
   const stale = isStaleData(data);
 
@@ -26,8 +36,9 @@ export function Dashboard() {
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
             <p>
-              <strong>Your data is from an older version.</strong> Charts, alerts, and KPIs need the
-              updated demo dataset. Click reset to load the latest data.
+              <strong>Your data is from an older version (v{data.data_version ?? 1}).</strong> This app
+              needs v{DATA_VERSION} for the latest KPIs and features. Click reset to load the current
+              demo dataset.
             </p>
           </div>
           <button
@@ -58,7 +69,11 @@ export function Dashboard() {
         </div>
       </div>
 
-      <KPIGrid kpis={kpis} equipmentCount={data.equipment.length} />
+      <KPIGrid
+        kpis={kpis}
+        equipmentCount={data.equipment.length}
+        onKpiClick={(key) => setKpiModalKey(key)}
+      />
 
       <KPIChartsPanel />
 
@@ -106,6 +121,12 @@ export function Dashboard() {
         onClose={() => setEditId(null)}
       />
       <ExportOptionsModal open={exportOpen} onClose={() => setExportOpen(false)} data={data} />
+      <KPITrapListModal
+        open={kpiModalKey !== null}
+        onClose={() => setKpiModalKey(null)}
+        kpiKey={kpiModalKey}
+        traps={kpiTraps}
+      />
     </div>
   );
 }

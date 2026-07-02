@@ -2,7 +2,7 @@ import type { Database, KPISnapshot, Trap, TrapTypeName } from '../types';
 import { CONNECTION_TYPES, DEFAULT_TRAP_DATASHEET } from '../types';
 import { buildKPISnapshot } from '../utils/kpiSnapshots';
 
-export const DATA_VERSION = 7;
+export const DATA_VERSION = 8;
 
 const TYPE_SPECS: Record<TrapTypeName, { manufacturers: string[]; models: string[] }> = {
   'Float & Thermostatic': {

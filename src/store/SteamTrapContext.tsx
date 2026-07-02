@@ -27,7 +27,7 @@ import { uid } from '../utils/id';
 import { isSupabaseConfigured, STATE_ROW_ID, STATE_TABLE, supabase } from '../lib/supabase';
 import { useAuth } from '../auth/AuthContext';
 
-const STORAGE_KEY = 'steam-trap-data-v7';
+const STORAGE_KEY = 'steam-trap-data-v8';
 
 export type SyncStatus = 'local' | 'loading' | 'saving' | 'saved' | 'error';
 
@@ -67,7 +67,10 @@ function loadData(): AppData {
     if (raw) {
       const parsed = JSON.parse(raw) as AppData;
       if (parsed?.equipment && parsed?.traps && parsed?.pm_records) {
-        return normalizeData(parsed);
+        const normalized = normalizeData(parsed);
+        if (!isStaleData(normalized)) {
+          return normalized;
+        }
       }
     }
   } catch {
@@ -228,7 +231,8 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
 
       if (!error && row?.data) {
         applyingRemote.current = true;
-        setData(normalizeData(row.data as AppData));
+        const normalized = normalizeData(row.data as AppData);
+        setData(isStaleData(normalized) ? structuredClone(seedData) : normalized);
       } else if (!error) {
         const seed = structuredClone(seedData);
         await sb.from(STATE_TABLE).upsert({
@@ -252,7 +256,8 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
           const incoming = (payload.new as { data?: AppData } | null)?.data;
           if (incoming) {
             applyingRemote.current = true;
-            setData(normalizeData(incoming));
+            const normalized = normalizeData(incoming);
+            setData(isStaleData(normalized) ? structuredClone(seedData) : normalized);
             setSyncStatus('saved');
           }
         },
