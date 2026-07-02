@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, ClipboardCheck, Pencil, Plus, Wrench } from 'lucide-react';
+import { AlertTriangle, ClipboardCheck, Download, FileSpreadsheet, Pencil, Plus, Wrench } from 'lucide-react';
 import { useSteamTrap } from '../store/SteamTrapContext';
 import type { PMRecord, ShutdownDeferral } from '../types';
 import {
@@ -22,6 +22,7 @@ import { TrapAlertBadges, TrapAlertBanner } from '../components/TrapAlerts';
 import { TrapFormModal } from '../components/forms/TrapFormModal';
 import { PMFormModal } from '../components/forms/PMFormModal';
 import { MaintenanceFormModal } from '../components/forms/MaintenanceFormModal';
+import { exportTrapWorkbookCSV, exportTrapWorkbookExcel } from '../utils/export';
 
 function displayValue(value: string | null | undefined): string {
   return value?.trim() ? value : '—';
@@ -116,6 +117,22 @@ export function TrapDetailPage() {
           <button className="btn-secondary" onClick={() => openMnt()}>
             <Wrench className="h-4 w-4" />
             Record Maintenance
+          </button>
+          <button
+            className="btn-secondary"
+            onClick={() => exportTrapWorkbookCSV(data, view.tag, view.id)}
+            title="Export this trap's inspection and maintenance history (CSV)"
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </button>
+          <button
+            className="btn-secondary"
+            onClick={() => exportTrapWorkbookExcel(data, view.tag, view.id)}
+            title="Export this trap's inspection and maintenance history (Excel)"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            Export Excel
           </button>
           <button
             className="btn-secondary text-red-700"

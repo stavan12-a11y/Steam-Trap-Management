@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, Plus, RotateCcw } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { AlertTriangle, FileSpreadsheet, Plus, RotateCcw, Table2 } from 'lucide-react';
 import { isStaleData, useSteamTrap } from '../store/SteamTrapContext';
-import { allTrapViews, computeKPIs, equipmentRollups } from '../utils/logic';
+import { allTrapViews, computeKPIs, equipmentRollups, todayISO } from '../utils/logic';
+import { exportFullWorkbookExcel, exportSheetCSV, buildKPISheet } from '../utils/export';
 import { KPIGrid } from '../components/KPIGrid';
 import { KPIChartsPanel } from '../components/KPIChartsPanel';
 import { EquipmentCard } from '../components/EquipmentCard';
@@ -47,6 +49,27 @@ export function Dashboard() {
           <p className="text-sm text-slate-500">
             Preventive maintenance status across all monitored equipment.
           </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/reporting" className="btn-secondary">
+            <Table2 className="h-4 w-4" />
+            All exports
+          </Link>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => exportSheetCSV(buildKPISheet(data), `kpis-${todayISO()}.csv`)}
+          >
+            Export KPIs (CSV)
+          </button>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => exportFullWorkbookExcel(data)}
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            Export workbook (Excel)
+          </button>
         </div>
       </div>
 
