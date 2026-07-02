@@ -102,12 +102,6 @@ export function pmIntervalDays(): number {
   return PM_INTERVAL_DAYS;
 }
 
-/** True when PM is approaching or overdue and a shutdown deferral may be recorded. */
-export function canRecordShutdownDeferral(view: TrapView): boolean {
-  if (!view.last_pm_date || view.days_until_due === null) return false;
-  return view.days_until_due <= UPCOMING_WINDOW_DAYS;
-}
-
 /** Count issue PM records within a rolling window. */
 export function failureCountInWindow(
   records: PMRecord[],

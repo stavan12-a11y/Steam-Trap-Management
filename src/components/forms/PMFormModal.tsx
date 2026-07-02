@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Power } from 'lucide-react';
 import { useSteamTrap } from '../../store/SteamTrapContext';
-import { buildTrapView, canRecordShutdownDeferral } from '../../utils/logic';
+import { buildTrapView } from '../../utils/logic';
 import { ISSUE_TYPES, type IssueType, type TrapStatus } from '../../types';
 import { Modal } from '../Modal';
 import { Field } from '../Field';
@@ -32,8 +32,7 @@ export function PMFormModal({ open, onClose, trapId, recordId, deferralId }: PMF
     ? data.shutdown_deferrals.find((r) => r.id === deferralId)
     : undefined;
 
-  const showShutdownOption =
-    !recordId && (deferralId ? true : view ? canRecordShutdownDeferral(view) : false);
+  const showShutdownOption = !recordId;
 
   const [outcome, setOutcome] = useState<PMOutcome>('Working');
   const [date, setDate] = useState(todayLocal());
