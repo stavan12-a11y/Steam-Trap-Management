@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { FileSpreadsheet, Download } from 'lucide-react';
+import { FileSpreadsheet } from 'lucide-react';
 import type { AppData } from '../types';
 import {
   EXPORT_OPTIONS,
-  exportSelectedWorkbookCSV,
   exportSelectedWorkbookExcel,
   type ExportOptionKey,
 } from '../utils/export';
@@ -17,7 +16,6 @@ interface ExportOptionsModalProps {
 }
 
 const DEFAULT_SELECTED: ExportOptionKey[] = [
-  'current_kpis',
   'fleet_reliability_history',
   'active_issues_history',
   'trap_register',
@@ -42,15 +40,14 @@ export function ExportOptionsModal({ open, onClose, data }: ExportOptionsModalPr
     });
   };
 
-  const selectHistorical = () => {
+  const selectAll = () => {
     setSelected(new Set(EXPORT_OPTIONS.map((o) => o.key)));
   };
 
-  const handleExport = (format: 'csv' | 'excel') => {
+  const handleExport = () => {
     const options = EXPORT_OPTIONS.filter((o) => selected.has(o.key)).map((o) => o.key);
     if (options.length === 0) return;
-    if (format === 'csv') exportSelectedWorkbookCSV(data, options);
-    else exportSelectedWorkbookExcel(data, options);
+    exportSelectedWorkbookExcel(data, options);
     onClose();
   };
 
@@ -68,18 +65,9 @@ export function ExportOptionsModal({ open, onClose, data }: ExportOptionsModalPr
           </button>
           <button
             type="button"
-            className="btn-secondary"
-            disabled={selected.size === 0}
-            onClick={() => handleExport('csv')}
-          >
-            <Download className="h-4 w-4" />
-            Download CSV
-          </button>
-          <button
-            type="button"
             className="btn-primary"
             disabled={selected.size === 0}
-            onClick={() => handleExport('excel')}
+            onClick={handleExport}
           >
             <FileSpreadsheet className="h-4 w-4" />
             Download Excel
@@ -92,7 +80,7 @@ export function ExportOptionsModal({ open, onClose, data }: ExportOptionsModalPr
           <span className="font-semibold text-slate-800">{snapshotCount}</span> KPI snapshots stored
           for historical trends
         </span>
-        <button type="button" className="text-xs font-semibold text-maroon-800 hover:underline" onClick={selectHistorical}>
+        <button type="button" className="text-xs font-semibold text-maroon-800 hover:underline" onClick={selectAll}>
           Select all
         </button>
       </div>

@@ -1,15 +1,9 @@
 import * as XLSX from 'xlsx';
 import type { AppData } from '../types';
-import { toCSV } from './csv';
 import { delta, sortedKPISnapshots } from './kpiSnapshots';
 import {
-  activeIssuesByType,
   allTrapViews,
-  computeKPIs,
-  issuesByEquipment,
   maintenanceForTrap,
-  pmScheduleBreakdown,
-  priorityBreakdown,
   recordsForTrap,
   shutdownDeferralsForTrap,
   sortByPriority,
@@ -23,7 +17,6 @@ export interface ExportSheet {
 }
 
 export type ExportOptionKey =
-  | 'current_kpis'
   | 'fleet_reliability_history'
   | 'active_issues_history'
   | 'overdue_pm_history'
@@ -40,11 +33,6 @@ export interface ExportOption {
 }
 
 export const EXPORT_OPTIONS: ExportOption[] = [
-  {
-    key: 'current_kpis',
-    label: 'Current KPIs',
-    description: 'Fleet KPIs and breakdowns as of today',
-  },
   {
     key: 'fleet_reliability_history',
     label: 'Fleet Reliability History',
@@ -92,16 +80,6 @@ function eqMaps(data: AppData) {
   return { eqById, trapById };
 }
 
-export function downloadCSV(filename: string, csv: string) {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename.endsWith('.csv') ? filename : `${filename}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 export function downloadExcel(filename: string, sheets: ExportSheet[]) {
   const wb = XLSX.utils.book_new();
   for (const sheet of sheets) {
@@ -113,43 +91,8 @@ export function downloadExcel(filename: string, sheets: ExportSheet[]) {
   XLSX.writeFile(wb, out);
 }
 
-export function exportSheetCSV(sheet: ExportSheet, filename: string) {
-  downloadCSV(filename, toCSV(sheet.headers, sheet.rows));
-}
-
 export function exportSheetExcel(sheet: ExportSheet, filename: string) {
   downloadExcel(filename, [sheet]);
-}
-
-export function buildKPISheet(data: AppData): ExportSheet {
-  const views = allTrapViews(data);
-  const kpis = computeKPIs(views);
-  const pmSchedule = pmScheduleBreakdown(views);
-  const priorities = priorityBreakdown(views);
-  const issuesByType = activeIssuesByType(views);
-  const equipmentIssues = issuesByEquipment(views);
-
-  const rows: unknown[][] = [
-    ['Total Traps', kpis.total_traps],
-    ['Active Issues', kpis.active_issues],
-    ['Overdue PM', kpis.overdue_pm],
-    ['Fleet Reliability %', kpis.fleet_reliability_rate],
-    ['Generated', todayISO()],
-    [],
-    ['PM Schedule', 'Count', 'Description'],
-    ...pmSchedule.map((s) => [s.name, s.value, s.description]),
-    [],
-    ['Priority', 'Count'],
-    ...priorities.map((p) => [p.name, p.value]),
-    [],
-    ['Issue Type', 'Active Count'],
-    ...issuesByType.map((i) => [i.type, i.count]),
-    [],
-    ['Equipment', 'Active Issues', 'Trap Count'],
-    ...equipmentIssues.map((e) => [e.equipment, e.issues, e.traps]),
-  ];
-
-  return { name: 'KPIs', headers: ['Metric', 'Value', 'Notes'], rows };
 }
 
 export function buildInspectionSheet(data: AppData, trapId?: string): ExportSheet {
@@ -402,7 +345,6 @@ export function buildPMScheduleHistorySheet(data: AppData): ExportSheet {
 }
 
 const SHEET_BUILDERS: Record<ExportOptionKey, (data: AppData) => ExportSheet> = {
-  current_kpis: buildKPISheet,
   fleet_reliability_history: buildFleetReliabilityHistorySheet,
   active_issues_history: buildActiveIssuesHistorySheet,
   overdue_pm_history: buildOverduePMHistorySheet,
@@ -421,25 +363,11 @@ export function exportSelectedWorkbookExcel(data: AppData, options: ExportOption
   downloadExcel(`steam-trap-export-${todayISO()}.xlsx`, buildSheetsFromOptions(data, options));
 }
 
-export function exportSelectedWorkbookCSV(data: AppData, options: ExportOptionKey[]) {
-  if (options.length === 0) return;
-  const parts = buildSheetsFromOptions(data, options).map(
-    (s) => `=== ${s.name} ===\r\n${toCSV(s.headers, s.rows)}`,
-  );
-  downloadCSV(`steam-trap-export-${todayISO()}.csv`, parts.join('\r\n\r\n'));
-}
-
 export function buildFullWorkbookSheets(data: AppData): ExportSheet[] {
   return buildSheetsFromOptions(
     data,
     EXPORT_OPTIONS.map((o) => o.key),
   );
-}
-
-export function exportFullWorkbookCSV(data: AppData) {
-  const sheets = buildFullWorkbookSheets(data);
-  const parts = sheets.map((s) => `=== ${s.name} ===\r\n${toCSV(s.headers, s.rows)}`);
-  downloadCSV(`steam-trap-export-${todayISO()}.csv`, parts.join('\r\n\r\n'));
 }
 
 export function exportFullWorkbookExcel(data: AppData) {
@@ -452,15 +380,4 @@ export function exportTrapWorkbookExcel(data: AppData, trapTag: string, trapId: 
     buildInspectionSheet(data, trapId),
     buildMaintenanceSheet(data, trapId),
   ]);
-}
-
-export function exportTrapWorkbookCSV(data: AppData, trapTag: string, trapId: string) {
-  const safeTag = trapTag.replace(/[\\/*?:[\]]/g, '-');
-  const inspection = buildInspectionSheet(data, trapId);
-  const maintenance = buildMaintenanceSheet(data, trapId);
-  const content = [
-    `=== ${inspection.name} ===\r\n${toCSV(inspection.headers, inspection.rows)}`,
-    `=== ${maintenance.name} ===\r\n${toCSV(maintenance.headers, maintenance.rows)}`,
-  ].join('\r\n\r\n');
-  downloadCSV(`trap-${safeTag}-${todayISO()}.csv`, content);
 }

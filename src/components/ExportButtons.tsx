@@ -1,22 +1,20 @@
-import { Download, FileSpreadsheet } from 'lucide-react';
+import { FileSpreadsheet } from 'lucide-react';
 
-interface ExportButtonsProps {
-  onCSV: () => void;
+interface ExportExcelButtonProps {
   onExcel: () => void;
+  label?: string;
   className?: string;
 }
 
-export function ExportButtons({ onCSV, onExcel, className = 'mt-4' }: ExportButtonsProps) {
+export function ExportExcelButton({
+  onExcel,
+  label = 'Download Excel',
+  className = 'mt-4',
+}: ExportExcelButtonProps) {
   return (
-    <div className={`flex flex-wrap gap-2 ${className}`}>
-      <button type="button" className="btn-secondary text-sm" onClick={onCSV}>
-        <Download className="h-4 w-4" />
-        CSV
-      </button>
-      <button type="button" className="btn-primary text-sm" onClick={onExcel}>
-        <FileSpreadsheet className="h-4 w-4" />
-        Excel
-      </button>
-    </div>
+    <button type="button" className={`btn-primary text-sm ${className}`} onClick={onExcel}>
+      <FileSpreadsheet className="h-4 w-4" />
+      {label}
+    </button>
   );
 }
