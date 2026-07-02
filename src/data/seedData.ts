@@ -2,7 +2,7 @@ import type { Database, KPISnapshot, Trap, TrapTypeName } from '../types';
 import { CONNECTION_TYPES, DEFAULT_TRAP_DATASHEET } from '../types';
 import { buildKPISnapshot } from '../utils/kpiSnapshots';
 
-export const DATA_VERSION = 6;
+export const DATA_VERSION = 7;
 
 const TYPE_SPECS: Record<TrapTypeName, { manufacturers: string[]; models: string[] }> = {
   'Float & Thermostatic': {
@@ -361,6 +361,8 @@ export function buildSeedDatabase(): Database {
         cycling_issues: Math.max(0, active - Math.round(active * 0.8)),
         engineering_review_count: progress > 0.5 ? 2 : 1,
         smart_alert_count: progress > 0.6 ? 3 : 2,
+        shutdown_deferred_traps: d <= 14 ? (d <= 7 ? 2 : 1) : 0,
+        shutdown_deferral_records: d <= 14 ? (d <= 7 ? 2 : 1) : 0,
         priority_breakdown: {
           Issue: active,
           Overdue: overdue,

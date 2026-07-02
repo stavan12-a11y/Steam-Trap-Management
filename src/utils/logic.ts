@@ -288,9 +288,15 @@ export interface KPIs {
   active_issues: number;
   overdue_pm: number;
   fleet_reliability_rate: number;
+  shutdown_deferred_traps: number;
 }
 
-export function computeKPIs(views: TrapView[]): KPIs {
+/** Unique traps with at least one equipment shutdown PM deferral on record. */
+export function countShutdownDeferredTraps(data: Database): number {
+  return new Set((data.shutdown_deferrals ?? []).map((d) => d.trap_id)).size;
+}
+
+export function computeKPIs(views: TrapView[], data?: Database): KPIs {
   const total = views.length;
   const active_issues = views.filter((v) => v.priority === 'Issue').length;
 
@@ -299,6 +305,7 @@ export function computeKPIs(views: TrapView[]): KPIs {
     active_issues,
     overdue_pm: views.filter((v) => v.priority === 'Overdue').length,
     fleet_reliability_rate: total > 0 ? Math.round(((total - active_issues) / total) * 100) : 100,
+    shutdown_deferred_traps: data ? countShutdownDeferredTraps(data) : 0,
   };
 }
 

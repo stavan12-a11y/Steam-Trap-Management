@@ -8,8 +8,10 @@ import {
   buildTrapRegisterSheet,
   buildFleetReliabilityHistorySheet,
   buildActiveIssuesHistorySheet,
+  buildOverduePMHistorySheet,
   exportFullWorkbookExcel,
   exportSheetExcel,
+  exportShutdownDeferralExcel,
 } from '../utils/export';
 import { ExportExcelButton } from '../components/ExportButtons';
 import { ExportOptionsModal } from '../components/ExportOptionsModal';
@@ -48,7 +50,7 @@ export function ReportingPage() {
         <p>
           <span className="font-semibold">{snapshotCount} KPI snapshots</span> are stored automatically
           each day the fleet data changes. Historical sheets (fleet reliability, active issues, overdue
-          PM) use these snapshots so you can track improvement over time. Use{' '}
+          PM, shutdown deferrals) use these snapshots so you can track improvement over time. Use{' '}
           <span className="font-semibold">Custom export</span> to pick exactly what to download.
         </p>
       </div>
@@ -81,6 +83,37 @@ export function ReportingPage() {
           <ExportExcelButton
             onExcel={() =>
               exportSheetExcel(buildActiveIssuesHistorySheet(data), `active-issues-${date}.xlsx`)
+            }
+          />
+        </div>
+
+        <div className="card p-5">
+          <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">
+            Overdue PM History
+          </h3>
+          <p className="mt-2 text-sm text-slate-500">
+            Date-wise overdue PM counts and change vs prior snapshot.
+          </p>
+          <ExportExcelButton
+            onExcel={() =>
+              exportSheetExcel(
+                buildOverduePMHistorySheet(data),
+                `overdue-pm-${date}.xlsx`,
+              )
+            }
+          />
+        </div>
+
+        <div className="card p-5">
+          <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">
+            Equipment Shutdown Deferrals
+          </h3>
+          <p className="mt-2 text-sm text-slate-500">
+            Date-wise deferred trap counts plus full deferral record details (two Excel sheets).
+          </p>
+          <ExportExcelButton
+            onExcel={() =>
+              exportShutdownDeferralExcel(data, `shutdown-deferrals-${date}.xlsx`)
             }
           />
         </div>

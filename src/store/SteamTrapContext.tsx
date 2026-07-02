@@ -27,7 +27,7 @@ import { uid } from '../utils/id';
 import { isSupabaseConfigured, STATE_ROW_ID, STATE_TABLE, supabase } from '../lib/supabase';
 import { useAuth } from '../auth/AuthContext';
 
-const STORAGE_KEY = 'steam-trap-data-v6';
+const STORAGE_KEY = 'steam-trap-data-v7';
 
 export type SyncStatus = 'local' | 'loading' | 'saving' | 'saved' | 'error';
 

@@ -123,6 +123,8 @@ export interface KPISnapshot {
   cycling_issues: number;
   engineering_review_count: number;
   smart_alert_count: number;
+  shutdown_deferred_traps: number;
+  shutdown_deferral_records: number;
   priority_breakdown: Record<string, number>;
   created_at: string;
 }

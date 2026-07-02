@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   Clock,
   Droplets,
+  Power,
   type LucideIcon,
 } from 'lucide-react';
 import type { KPIs } from '../utils/logic';
@@ -33,7 +34,7 @@ function KPICard({ label, value, icon: Icon, accent, iconBg, hint }: KPICardProp
 
 export function KPIGrid({ kpis, equipmentCount }: { kpis: KPIs; equipmentCount: number }) {
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
       <KPICard
         label="Total Traps"
         value={kpis.total_traps}
@@ -57,6 +58,14 @@ export function KPIGrid({ kpis, equipmentCount }: { kpis: KPIs; equipmentCount: 
         accent="text-amber-600"
         iconBg="bg-amber-50"
         hint="Inspection past due date"
+      />
+      <KPICard
+        label="Shutdown Deferrals"
+        value={kpis.shutdown_deferred_traps}
+        icon={Power}
+        accent="text-sky-600"
+        iconBg="bg-sky-50"
+        hint="Traps PM deferred — equipment outage"
       />
       <KPICard
         label="Fleet Reliability"

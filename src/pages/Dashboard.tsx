@@ -16,7 +16,7 @@ export function Dashboard() {
   const [editId, setEditId] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
 
-  const kpis = useMemo(() => computeKPIs(allTrapViews(data)), [data]);
+  const kpis = useMemo(() => computeKPIs(allTrapViews(data), data), [data]);
   const rollups = useMemo(() => equipmentRollups(data), [data]);
   const stale = isStaleData(data);
 

@@ -20,6 +20,7 @@ export type ExportOptionKey =
   | 'fleet_reliability_history'
   | 'active_issues_history'
   | 'overdue_pm_history'
+  | 'equipment_shutdown_deferrals'
   | 'trap_register'
   | 'inspection_history'
   | 'maintenance_history';
@@ -48,6 +49,12 @@ export const EXPORT_OPTIONS: ExportOption[] = [
     key: 'overdue_pm_history',
     label: 'Overdue PM History',
     description: 'Date-wise overdue PM counts and change vs prior snapshot',
+    historical: true,
+  },
+  {
+    key: 'equipment_shutdown_deferrals',
+    label: 'Equipment Shutdown Deferrals',
+    description: 'Date-wise deferred trap counts and full deferral records',
     historical: true,
   },
   {
@@ -312,7 +319,73 @@ export function buildOverduePMHistorySheet(data: AppData): ExportSheet {
   return { name: 'Overdue PM History', headers, rows };
 }
 
-const SHEET_BUILDERS: Record<ExportOptionKey, (data: AppData) => ExportSheet> = {
+export function buildShutdownDeferralHistorySheet(data: AppData): ExportSheet {
+  const snapshots = sortedKPISnapshots(data);
+  const headers = [
+    'Date',
+    'Traps with Shutdown Deferral',
+    'Total Deferral Records',
+    'Change vs Prior (Traps)',
+  ];
+
+  const rows = snapshots.map((s, i) => {
+    const prev = i > 0 ? snapshots[i - 1] : undefined;
+    const traps = s.shutdown_deferred_traps ?? 0;
+    return [
+      s.date,
+      traps,
+      s.shutdown_deferral_records ?? 0,
+      delta(traps, prev?.shutdown_deferred_traps),
+    ];
+  });
+
+  return { name: 'Shutdown Deferral History', headers, rows };
+}
+
+export function buildShutdownDeferralDetailSheet(data: AppData): ExportSheet {
+  const { eqById } = eqMaps(data);
+  const headers = [
+    'Recorded Date',
+    'Trap Tag',
+    'Trap Type',
+    'Location',
+    'Equipment',
+    'Area',
+    'PM Due Date',
+    'Technician',
+    'Notes',
+  ];
+
+  const rows: unknown[][] = [];
+  for (const sd of [...(data.shutdown_deferrals ?? [])].sort((a, b) =>
+    b.recorded_date.localeCompare(a.recorded_date),
+  )) {
+    const trap = data.traps.find((t) => t.id === sd.trap_id);
+    const eq = trap ? eqById.get(trap.equipment_id) : undefined;
+    rows.push([
+      sd.recorded_date,
+      trap?.tag ?? '',
+      trap?.type ?? '',
+      trap?.location ?? '',
+      eq?.name ?? '',
+      eq?.area ?? '',
+      sd.pm_due_date,
+      sd.technician,
+      sd.notes,
+    ]);
+  }
+
+  return { name: 'Shutdown Deferral Records', headers, rows };
+}
+
+export function buildShutdownDeferralSheets(data: AppData): ExportSheet[] {
+  return [buildShutdownDeferralHistorySheet(data), buildShutdownDeferralDetailSheet(data)];
+}
+
+const SHEET_BUILDERS: Record<
+  Exclude<ExportOptionKey, 'equipment_shutdown_deferrals'>,
+  (data: AppData) => ExportSheet
+> = {
   fleet_reliability_history: buildFleetReliabilityHistorySheet,
   active_issues_history: buildActiveIssuesHistorySheet,
   overdue_pm_history: buildOverduePMHistorySheet,
@@ -322,7 +395,16 @@ const SHEET_BUILDERS: Record<ExportOptionKey, (data: AppData) => ExportSheet> = 
 };
 
 export function buildSheetsFromOptions(data: AppData, options: ExportOptionKey[]): ExportSheet[] {
-  return options.map((key) => SHEET_BUILDERS[key](data));
+  return options.flatMap((key) => {
+    if (key === 'equipment_shutdown_deferrals') {
+      return buildShutdownDeferralSheets(data);
+    }
+    return [SHEET_BUILDERS[key](data)];
+  });
+}
+
+export function exportShutdownDeferralExcel(data: AppData, filename: string) {
+  downloadExcel(filename, buildShutdownDeferralSheets(data));
 }
 
 export function exportSelectedWorkbookExcel(data: AppData, options: ExportOptionKey[]) {

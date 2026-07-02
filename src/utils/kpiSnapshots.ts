@@ -3,6 +3,7 @@ import {
   activeIssuesByType,
   allTrapViews,
   computeKPIs,
+  countShutdownDeferredTraps,
   pmScheduleBreakdown,
   priorityBreakdown,
   todayISO,
@@ -16,7 +17,7 @@ function priorityCount(views: ReturnType<typeof allTrapViews>, priority: string)
 /** Capture fleet KPIs and breakdowns for a single date (typically today). */
 export function buildKPISnapshot(data: AppData, date = todayISO()): KPISnapshot {
   const views = allTrapViews(data, date);
-  const kpis = computeKPIs(views);
+  const kpis = computeKPIs(views, data);
   const pmSchedule = pmScheduleBreakdown(views);
   const issuesByType = activeIssuesByType(views);
   const priorities = priorityBreakdown(views);
@@ -43,6 +44,8 @@ export function buildKPISnapshot(data: AppData, date = todayISO()): KPISnapshot 
     cycling_issues: issueMap.Cycling ?? 0,
     engineering_review_count: views.filter((v) => v.engineering_review_required).length,
     smart_alert_count: views.filter((v) => v.alert_count > 0).length,
+    shutdown_deferred_traps: countShutdownDeferredTraps(data),
+    shutdown_deferral_records: (data.shutdown_deferrals ?? []).length,
     priority_breakdown: Object.fromEntries(priorities.map((p) => [p.name, p.value])),
     created_at: new Date().toISOString(),
   };
@@ -56,7 +59,8 @@ function snapshotMetricsEqual(a: KPISnapshot, b: KPISnapshot): boolean {
     a.fleet_reliability_rate === b.fleet_reliability_rate &&
     a.due_soon_pm === b.due_soon_pm &&
     a.on_track_pm === b.on_track_pm &&
-    a.never_inspected === b.never_inspected
+    a.never_inspected === b.never_inspected &&
+    a.shutdown_deferred_traps === b.shutdown_deferred_traps
   );
 }
 
