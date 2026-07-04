@@ -96,10 +96,7 @@ export function KPIChartsPanel() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <ChartCard
-          title="PM Schedule"
-          subtitle="When is the next inspection due? Independent of pass/fail status"
-        >
+        <ChartCard title="PM Schedule">
           {pmSchedule.length === 0 ? (
             <EmptyChart message="No traps to display" />
           ) : (
