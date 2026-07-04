@@ -1,35 +1,77 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSteamTrap } from '../store/SteamTrapContext';
-import { allTrapViews, sortByPriority } from '../utils/logic';
+import { allTrapViews, repairsListTraps, scheduleListTraps, sortByPriority } from '../utils/logic';
 import { dueLabel } from '../utils/format';
 import { PriorityBadge } from './Badges';
 import { TrapAlertBadges } from './TrapAlerts';
 
+type ListTab = 'schedule' | 'repairs';
+
+const TAB_COPY: Record<ListTab, { description: string; empty: string }> = {
+  schedule: {
+    description: 'Overdue, due soon, and never-inspected PM',
+    empty: 'No traps on the PM schedule need attention.',
+  },
+  repairs: {
+    description: 'Active issues and traps flagged for review',
+    empty: 'No traps need repair or follow-up action.',
+  },
+};
+
 export function PriorityQueuePanel() {
   const { data } = useSteamTrap();
+  const [tab, setTab] = useState<ListTab>('schedule');
 
-  const queue = useMemo(() => {
+  const { schedule, repairs } = useMemo(() => {
     const views = sortByPriority(allTrapViews(data));
-    const urgent = views.filter((v) => v.priority !== 'Healthy');
-    const alertOnly = views.filter((v) => v.priority === 'Healthy' && v.alert_count > 0);
-    return [...urgent, ...alertOnly].slice(0, 10);
+    return {
+      schedule: scheduleListTraps(views),
+      repairs: repairsListTraps(views),
+    };
   }, [data]);
+
+  const list = tab === 'schedule' ? schedule : repairs;
+  const copy = TAB_COPY[tab];
 
   return (
     <div className="card flex h-full min-h-[480px] flex-col overflow-hidden">
       <div className="border-b border-slate-200 px-4 py-3">
-        <h3 className="text-sm font-bold text-slate-900">Priority Action Queue</h3>
-        <p className="text-xs text-slate-500">Top 10 · issues, overdue PM, smart alerts</p>
+        <h3 className="text-sm font-bold text-slate-900">Schedule/Repairs List</h3>
+        <div className="mt-2 flex rounded-lg border border-slate-200 bg-slate-100 p-0.5">
+          <button
+            type="button"
+            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+              tab === 'schedule'
+                ? 'bg-white text-maroon-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+            onClick={() => setTab('schedule')}
+          >
+            Schedule
+            <span className="ml-1.5 font-mono text-[10px] text-slate-500">({schedule.length})</span>
+          </button>
+          <button
+            type="button"
+            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+              tab === 'repairs'
+                ? 'bg-white text-maroon-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+            onClick={() => setTab('repairs')}
+          >
+            Repairs
+            <span className="ml-1.5 font-mono text-[10px] text-slate-500">({repairs.length})</span>
+          </button>
+        </div>
+        <p className="mt-2 text-xs text-slate-500">{copy.description}</p>
       </div>
       <div className="flex-1 overflow-y-auto">
-        {queue.length === 0 ? (
-          <p className="p-6 text-center text-sm text-slate-500">
-            No outstanding actions — the whole fleet is healthy.
-          </p>
+        {list.length === 0 ? (
+          <p className="p-6 text-center text-sm text-slate-500">{copy.empty}</p>
         ) : (
           <ul className="divide-y divide-slate-100">
-            {queue.map((v) => (
+            {list.map((v) => (
               <li key={v.id}>
                 <Link
                   to={`/traps/${v.id}`}

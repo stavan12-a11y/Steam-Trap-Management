@@ -312,6 +312,18 @@ export function allTrapViews(db: Database, today = todayISO()): TrapView[] {
     .filter((v): v is TrapView => v !== null);
 }
 
+/** Traps on the PM schedule that need attention (not active repair work). */
+export function scheduleListTraps(views: TrapView[]): TrapView[] {
+  return views.filter((v) =>
+    v.priority === 'Overdue' || v.priority === 'Upcoming' || v.priority === 'Never inspected',
+  );
+}
+
+/** Traps needing repair or follow-up action (active issues and smart alerts). */
+export function repairsListTraps(views: TrapView[]): TrapView[] {
+  return views.filter((v) => v.priority === 'Issue' || v.alert_count > 0);
+}
+
 /** Sort by priority urgency, then by how overdue (most overdue first), then tag. */
 export function sortByPriority(views: TrapView[]): TrapView[] {
   return [...views].sort((a, b) => {
