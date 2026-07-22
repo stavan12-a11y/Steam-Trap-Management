@@ -503,19 +503,31 @@ export interface IssueTypeCount {
  * Count current active issues by label, sorted by frequency (highest first).
  * Uses issue_type when set; otherwise the free-text latest_result (TLV uploads).
  */
+export function issueTypeLabel(view: TrapView): string {
+  return view.issue_type?.trim() || view.latest_result?.trim() || 'Unspecified';
+}
+
 export function activeIssuesByType(views: TrapView[]): IssueTypeCount[] {
   const counts = new Map<string, number>();
   for (const v of views) {
     if (v.status !== 'Issue') continue;
-    const label =
-      v.issue_type?.trim() ||
-      v.latest_result?.trim() ||
-      'Unspecified';
+    const label = issueTypeLabel(v);
     counts.set(label, (counts.get(label) ?? 0) + 1);
   }
   return [...counts.entries()]
     .map(([type, count]) => ({ type, count }))
     .sort((a, b) => b.count - a.count || a.type.localeCompare(b.type));
+}
+
+/** Active-issue traps matching a chart category. */
+export function trapsForIssueType(views: TrapView[], type: string): TrapView[] {
+  return views.filter((v) => v.status === 'Issue' && issueTypeLabel(v) === type);
+}
+
+export function trapsForEquipmentIssues(views: TrapView[], equipment: string): TrapView[] {
+  return views.filter(
+    (v) => v.status === 'Issue' && (v.equipment_name || 'Unassigned') === equipment,
+  );
 }
 
 export interface MonthlyPMCount {

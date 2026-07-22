@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Bar,
   BarChart,
@@ -17,10 +17,21 @@ import {
   allTrapViews,
   issuesByEquipment,
   pmScheduleBreakdown,
+  trapsForEquipmentIssues,
+  trapsForIssueType,
   type StatusSlice,
 } from '../utils/logic';
+import { TrapListModal } from './TrapListModal';
 
-function ChartCard({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+function ChartCard({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="card flex flex-col p-4">
       <div className="mb-3">
@@ -78,6 +89,10 @@ function PmScheduleLegend({ slices }: { slices: StatusSlice[] }) {
   );
 }
 
+type ChartDrilldown =
+  | { kind: 'issue_type'; label: string }
+  | { kind: 'equipment'; label: string };
+
 export function KPIChartsPanel() {
   const { data } = useSteamTrap();
   const views = useMemo(() => allTrapViews(data), [data]);
@@ -87,12 +102,36 @@ export function KPIChartsPanel() {
     () => issuesByEquipment(views).filter((e) => e.issues > 0),
     [views],
   );
+  const [drilldown, setDrilldown] = useState<ChartDrilldown | null>(null);
+
+  const drilldownTraps = useMemo(() => {
+    if (!drilldown) return [];
+    if (drilldown.kind === 'issue_type') return trapsForIssueType(views, drilldown.label);
+    return trapsForEquipmentIssues(views, drilldown.label);
+  }, [drilldown, views]);
+
+  const drilldownTitle =
+    drilldown?.kind === 'issue_type'
+      ? `Issues: ${drilldown.label}`
+      : drilldown?.kind === 'equipment'
+        ? `Issues: ${drilldown.label}`
+        : '';
+
+  const drilldownDescription =
+    drilldown?.kind === 'issue_type'
+      ? 'Active-issue traps with this result / issue type.'
+      : drilldown?.kind === 'equipment'
+        ? 'Active-issue traps on this equipment.'
+        : undefined;
 
   return (
     <section className="space-y-3">
       <div>
         <h3 className="text-lg font-bold text-slate-900">Fleet Analytics</h3>
-        <p className="text-sm text-slate-500">Visual breakdown for trend analysis and planning.</p>
+        <p className="text-sm text-slate-500">
+          Visual breakdown for trend analysis and planning. Click a bar to see the traps in that
+          category.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -125,7 +164,10 @@ export function KPIChartsPanel() {
           )}
         </ChartCard>
 
-        <ChartCard title="Active Issues by Type" subtitle="All current issues, sorted by frequency">
+        <ChartCard
+          title="Active Issues by Type"
+          subtitle="Click a bar to list traps — sorted by frequency"
+        >
           {issueTypes.length === 0 ? (
             <EmptyChart message="No active issues" />
           ) : (
@@ -148,15 +190,29 @@ export function KPIChartsPanel() {
                 />
                 <Tooltip
                   formatter={(value) => [`${value}`, 'Count']}
-                  labelFormatter={(label) => String(label)}
+                  labelFormatter={(label) => `${String(label)} · click to view traps`}
                 />
-                <Bar dataKey="count" name="Count" fill="#dc2626" radius={[0, 4, 4, 0]} />
+                <Bar
+                  dataKey="count"
+                  name="Count"
+                  fill="#dc2626"
+                  radius={[0, 4, 4, 0]}
+                  cursor="pointer"
+                  onClick={(item) => {
+                    const row = item as { type?: string; payload?: { type?: string } };
+                    const type = row.payload?.type ?? row.type;
+                    if (type) setDrilldown({ kind: 'issue_type', label: type });
+                  }}
+                />
               </BarChart>
             </ResponsiveContainer>
           )}
         </ChartCard>
 
-        <ChartCard title="Issues by Equipment" subtitle="Active issues grouped by equipment">
+        <ChartCard
+          title="Issues by Equipment"
+          subtitle="Click a bar to list traps on that equipment"
+        >
           {equipmentIssues.length === 0 ? (
             <EmptyChart message="No active issues by equipment" />
           ) : (
@@ -164,19 +220,38 @@ export function KPIChartsPanel() {
               <BarChart data={equipmentIssues} layout="vertical" margin={{ left: 8, right: 16 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                 <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                <YAxis
-                  type="category"
-                  dataKey="equipment"
-                  width={110}
-                  tick={{ fontSize: 10 }}
+                <YAxis type="category" dataKey="equipment" width={110} tick={{ fontSize: 10 }} />
+                <Tooltip
+                  formatter={(value) => [`${value}`, 'Issues']}
+                  labelFormatter={(label) => `${String(label)} · click to view traps`}
                 />
-                <Tooltip />
-                <Bar dataKey="issues" fill="#d97706" radius={[0, 4, 4, 0]} />
+                <Bar
+                  dataKey="issues"
+                  fill="#d97706"
+                  radius={[0, 4, 4, 0]}
+                  cursor="pointer"
+                  onClick={(item) => {
+                    const row = item as {
+                      equipment?: string;
+                      payload?: { equipment?: string };
+                    };
+                    const equipment = row.payload?.equipment ?? row.equipment;
+                    if (equipment) setDrilldown({ kind: 'equipment', label: equipment });
+                  }}
+                />
               </BarChart>
             </ResponsiveContainer>
           )}
         </ChartCard>
       </div>
+
+      <TrapListModal
+        open={drilldown !== null}
+        onClose={() => setDrilldown(null)}
+        title={drilldownTitle}
+        description={drilldownDescription}
+        traps={drilldownTraps}
+      />
     </section>
   );
 }
