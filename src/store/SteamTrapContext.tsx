@@ -13,6 +13,7 @@ import type {
   EngineeringReviewOutcome,
   EngineeringReviewRecord,
   Equipment,
+  InspectionSource,
   IssueType,
   MaintenanceAction,
   MaintenanceRecord,
@@ -134,6 +135,7 @@ interface SteamTrapContextValue {
       issue_type?: IssueType | null;
       technician?: string;
       notes?: string;
+      source?: InspectionSource;
     },
   ) => { ok: true; record: PMRecord } | { ok: false; error: string };
 
@@ -424,6 +426,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
         issue_type?: IssueType | null;
         technician?: string;
         notes?: string;
+        source?: InspectionSource;
       },
     ): { ok: true; record: PMRecord } | { ok: false; error: string } => {
       let result: { ok: true; record: PMRecord } | { ok: false; error: string } = {
@@ -442,6 +445,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
           }
         }
 
+        const source = input.source === 'tlv' ? 'tlv' : 'pm';
         const record: PMRecord = {
           id: uid('pm'),
           trap_id: trapId,
@@ -449,8 +453,9 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
           status: input.status,
           issue_type: input.status === 'Issue' ? (input.issue_type ?? null) : null,
           result: '',
-          source: 'pm',
-          technician: (input.technician ?? '').trim() || 'Unknown',
+          source,
+          technician:
+            (input.technician ?? '').trim() || (source === 'tlv' ? 'TLV' : 'Unknown'),
           notes: (input.notes ?? '').trim(),
           created_at: new Date().toISOString(),
         };

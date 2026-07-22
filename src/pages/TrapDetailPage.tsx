@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, ClipboardCheck, FileSpreadsheet, Pencil, Plus, ShieldCheck, Wrench } from 'lucide-react';
+import { AlertTriangle, ClipboardCheck, FileSpreadsheet, Pencil, ShieldCheck, Wrench } from 'lucide-react';
 import { useSteamTrap } from '../store/SteamTrapContext';
 import type { InspectionSource, PMRecord, ShutdownDeferral } from '../types';
 import {
@@ -71,6 +71,7 @@ export function TrapDetailPage() {
   );
 
   const [historySource, setHistorySource] = useState<InspectionSource>('tlv');
+  const [formSource, setFormSource] = useState<InspectionSource>('pm');
   const history = useMemo(() => {
     const scoped = recordsForSource(records, historySource);
     // Shutdown deferrals belong with the PM program tab only.
@@ -97,7 +98,12 @@ export function TrapDetailPage() {
     setEngReviewOpen(true);
   };
 
-  const openPm = (recordId?: string, deferralId?: string) => {
+  const openInspection = (
+    source: InspectionSource,
+    recordId?: string,
+    deferralId?: string,
+  ) => {
+    setFormSource(source);
     setEditPmId(recordId);
     setEditDeferralId(deferralId);
     setPmOpen(true);
@@ -136,14 +142,6 @@ export function TrapDetailPage() {
             </span>
           )}
           <TrapAlertBadges alerts={view.alerts} />
-          <button className="btn-primary" onClick={() => openPm()}>
-            <ClipboardCheck className="h-4 w-4" />
-            Record PM
-          </button>
-          <button className="btn-secondary" onClick={() => openMnt()}>
-            <Wrench className="h-4 w-4" />
-            Record Maintenance
-          </button>
           <button
             className="btn-secondary"
             onClick={() => exportTrapWorkbookExcel(data, view.tag, view.id)}
@@ -232,7 +230,28 @@ export function TrapDetailPage() {
               <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">
                 Inspection History
               </h3>
-              <span className="shrink-0 text-xs text-slate-400">{history.length} records</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="shrink-0 text-xs text-slate-400">{history.length} records</span>
+                {historySource === 'tlv' ? (
+                  <button
+                    type="button"
+                    className="btn-primary text-xs"
+                    onClick={() => openInspection('tlv')}
+                  >
+                    <ClipboardCheck className="h-3.5 w-3.5" />
+                    Record TLV survey
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn-primary text-xs"
+                    onClick={() => openInspection('pm')}
+                  >
+                    <ClipboardCheck className="h-3.5 w-3.5" />
+                    Record PM
+                  </button>
+                )}
+              </div>
             </div>
             <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
               <button
@@ -260,14 +279,14 @@ export function TrapDetailPage() {
             </div>
             <p className="text-xs text-slate-500">
               {historySource === 'tlv'
-                ? 'TLV survey inspections (from Excel upload). Trap status uses the latest result across TLV and PM.'
-                : 'PM program inspections. You have not started these yet — use Record PM when ready.'}
+                ? 'TLV survey inspections. Trap status uses the latest result across TLV and PM.'
+                : 'PM program inspections. Recording a PM starts / updates the PM schedule.'}
             </p>
           </div>
           {history.length === 0 ? (
             <p className="text-sm text-slate-500">
               {historySource === 'tlv'
-                ? 'No TLV inspections recorded yet. Import them via the Excel template.'
+                ? 'No TLV inspections recorded yet. Import via Excel or use Record TLV survey.'
                 : 'No PM inspections recorded yet.'}
             </p>
           ) : (
@@ -296,14 +315,22 @@ export function TrapDetailPage() {
                         <div className="flex gap-3">
                           <button
                             className="text-xs font-semibold text-slate-600 hover:underline"
-                            onClick={() => openPm(r.id)}
+                            onClick={() => openInspection(r.source ?? historySource, r.id)}
                           >
                             Edit
                           </button>
                           <button
                             className="text-xs font-semibold text-red-600 hover:underline"
                             onClick={() => {
-                              if (confirm('Delete this PM record?')) deletePM(r.id);
+                              if (
+                                confirm(
+                                  historySource === 'tlv'
+                                    ? 'Delete this TLV survey record?'
+                                    : 'Delete this PM record?',
+                                )
+                              ) {
+                                deletePM(r.id);
+                              }
                             }}
                           >
                             Delete
@@ -333,7 +360,7 @@ export function TrapDetailPage() {
                       <div className="flex gap-3">
                         <button
                           className="text-xs font-semibold text-slate-600 hover:underline"
-                          onClick={() => openPm(undefined, sd.id)}
+                          onClick={() => openInspection('pm', undefined, sd.id)}
                         >
                           Edit
                         </button>
@@ -364,9 +391,9 @@ export function TrapDetailPage() {
                 Repairs, preventive maintenance, and trap replacements
               </p>
             </div>
-            <button className="btn-secondary shrink-0 text-sm" onClick={() => openMnt()}>
-              <Plus className="h-4 w-4" />
-              Add record
+            <button className="btn-primary shrink-0 text-sm" onClick={() => openMnt()}>
+              <Wrench className="h-4 w-4" />
+              Record Maintenance
             </button>
           </div>
 
@@ -374,9 +401,6 @@ export function TrapDetailPage() {
             <div className="rounded-lg border border-dashed border-slate-200 py-8 text-center">
               <Wrench className="mx-auto h-8 w-8 text-slate-300" />
               <p className="mt-2 text-sm text-slate-500">No maintenance records yet.</p>
-              <button className="btn-primary mt-3 inline-flex text-sm" onClick={() => openMnt()}>
-                Record first maintenance
-              </button>
             </div>
           ) : (
             <ul className="max-h-[32rem] space-y-3 overflow-y-auto pr-1">
@@ -523,6 +547,7 @@ export function TrapDetailPage() {
         trapId={view.id}
         recordId={editPmId}
         deferralId={editDeferralId}
+        source={formSource}
       />
       <MaintenanceFormModal
         open={mntOpen}

@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, Power } from 'lucide-react';
 import { useSteamTrap } from '../../store/SteamTrapContext';
 import { buildTrapView } from '../../utils/logic';
-import { ISSUE_TYPES, type IssueType, type TrapStatus } from '../../types';
+import {
+  ISSUE_TYPES,
+  type InspectionSource,
+  type IssueType,
+  type TrapStatus,
+} from '../../types';
 import { Modal } from '../Modal';
 import { Field } from '../Field';
 
@@ -14,6 +19,8 @@ interface PMFormModalProps {
   trapId: string;
   recordId?: string;
   deferralId?: string;
+  /** Which inspection program this form belongs to. Defaults to PM. */
+  source?: InspectionSource;
 }
 
 function todayLocal(): string {
@@ -22,7 +29,14 @@ function todayLocal(): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function PMFormModal({ open, onClose, trapId, recordId, deferralId }: PMFormModalProps) {
+export function PMFormModal({
+  open,
+  onClose,
+  trapId,
+  recordId,
+  deferralId,
+  source = 'pm',
+}: PMFormModalProps) {
   const { data, addPM, updatePM, addShutdownDeferral, updateShutdownDeferral } = useSteamTrap();
   const trap = data.traps.find((t) => t.id === trapId);
   const equipment = trap ? data.equipment.find((e) => e.id === trap.equipment_id) : undefined;
@@ -32,7 +46,10 @@ export function PMFormModal({ open, onClose, trapId, recordId, deferralId }: PMF
     ? data.shutdown_deferrals.find((r) => r.id === deferralId)
     : undefined;
 
-  const showShutdownOption = !recordId;
+  const effectiveSource: InspectionSource =
+    existing?.source ?? (source === 'tlv' ? 'tlv' : 'pm');
+  const isTlv = effectiveSource === 'tlv';
+  const showShutdownOption = !recordId && !isTlv;
 
   const [outcome, setOutcome] = useState<PMOutcome>('Working');
   const [date, setDate] = useState(todayLocal());
@@ -58,11 +75,11 @@ export function PMFormModal({ open, onClose, trapId, recordId, deferralId }: PMF
       setOutcome('Working');
       setDate(todayLocal());
       setIssueType(ISSUE_TYPES[0]);
-      setTechnician('');
+      setTechnician(isTlv ? 'TLV' : '');
       setNotes('');
     }
     setError(null);
-  }, [open, trapId, recordId, deferralId, existing, existingDeferral]);
+  }, [open, trapId, recordId, deferralId, existing, existingDeferral, isTlv]);
 
   const handleSave = () => {
     setError(null);
@@ -93,6 +110,7 @@ export function PMFormModal({ open, onClose, trapId, recordId, deferralId }: PMF
       issue_type: outcome === 'Issue' ? issueType : null,
       technician,
       notes,
+      source: effectiveSource,
     };
 
     const res = recordId ? updatePM(recordId, input) : addPM(trapId, input);
@@ -104,13 +122,20 @@ export function PMFormModal({ open, onClose, trapId, recordId, deferralId }: PMF
   };
 
   const isShutdown = outcome === 'Shutdown';
-  const submitLabel = deferralId || recordId ? 'Save changes' : isShutdown ? 'Record deferral' : 'Submit PM';
+  const kindLabel = isTlv ? 'TLV survey' : 'PM';
+  const submitLabel = deferralId || recordId
+    ? 'Save changes'
+    : isShutdown
+      ? 'Record deferral'
+      : isTlv
+        ? 'Submit TLV survey'
+        : 'Submit PM';
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title={`${recordId || deferralId ? 'Edit' : 'Record'} PM · ${view?.tag ?? ''}`}
+      title={`${recordId || deferralId ? 'Edit' : 'Record'} ${kindLabel} · ${view?.tag ?? ''}`}
       footer={
         <>
           <button className="btn-secondary" onClick={onClose}>
@@ -197,7 +222,7 @@ export function PMFormModal({ open, onClose, trapId, recordId, deferralId }: PMF
             className="input"
             value={technician}
             onChange={(e) => setTechnician(e.target.value)}
-            placeholder="e.g. R. Alvarez"
+            placeholder={isTlv ? 'e.g. TLV surveyor' : 'e.g. R. Alvarez'}
           />
         </Field>
         <Field label={isShutdown ? 'Shutdown reason / notes' : 'Notes'} required={isShutdown}>
