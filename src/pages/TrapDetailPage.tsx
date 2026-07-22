@@ -4,14 +4,12 @@ import { AlertTriangle, ClipboardCheck, FileSpreadsheet, Pencil, Plus, ShieldChe
 import { useSteamTrap } from '../store/SteamTrapContext';
 import type { PMRecord, ShutdownDeferral } from '../types';
 import {
-  PM_INTERVAL_DAYS,
   buildTrapView,
   engineeringReviewsForTrap,
   maintenanceForTrap,
   recordsForTrap,
   shutdownDeferralsForTrap,
 } from '../utils/logic';
-import { dueLabel } from '../utils/format';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import {
   EngineeringReviewOutcomeBadge,
@@ -197,10 +195,10 @@ export function TrapDetailPage() {
             <dd>{displayValue(view.orientation)}</dd>
             <dt className="text-slate-500">Line pressure</dt>
             <dd>{displayValue(view.line_pressure)}</dd>
-            <dt className="text-slate-500">Trap model</dt>
-            <dd>{displayValue(view.model)}</dd>
           </dl>
           <dl className="grid grid-cols-[140px_1fr] gap-x-4 gap-y-3 text-sm">
+            <dt className="text-slate-500">Trap model</dt>
+            <dd>{displayValue(view.model)}</dd>
             <dt className="text-slate-500">Size (inch)</dt>
             <dd>{displayValue(view.trap_size)}</dd>
             <dt className="text-slate-500">Trap connection</dt>
@@ -209,24 +207,6 @@ export function TrapDetailPage() {
             <dd>{view.type}</dd>
             <dt className="text-slate-500">Manufacturer</dt>
             <dd>{displayValue(view.manufacturer)}</dd>
-            <dt className="text-slate-500">Serial number</dt>
-            <dd className="font-mono text-xs">{displayValue(view.serial_number)}</dd>
-            <dt className="text-slate-500">Install date</dt>
-            <dd className="font-mono">{displayValue(view.install_date)}</dd>
-            <dt className="text-slate-500">PM interval</dt>
-            <dd>{PM_INTERVAL_DAYS} days (3 months)</dd>
-            <dt className="text-slate-500">Last PM</dt>
-            <dd className="font-mono">{view.last_pm_date ?? '—'}</dd>
-            <dt className="text-slate-500">Next PM</dt>
-            <dd>
-              {view.next_pm_date
-                ? `${view.next_pm_date} · ${dueLabel(view.days_until_due, view.priority)}`
-                : '—'}
-            </dd>
-            <dt className="text-slate-500">Failures (36 mo)</dt>
-            <dd className={view.failure_count_36mo >= 3 ? 'font-semibold text-violet-700' : ''}>
-              {view.failure_count_36mo}
-            </dd>
           </dl>
         </div>
       </div>
