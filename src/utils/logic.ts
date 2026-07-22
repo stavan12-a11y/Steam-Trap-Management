@@ -14,7 +14,19 @@ import type {
 import { PRIORITIES } from '../types';
 
 export const UPCOMING_WINDOW_DAYS = 14;
-export const PM_INTERVAL_DAYS = 90; // 3 months — uniform for all trap types
+export const PM_INTERVAL_DAYS = 90; // default when a trap has no custom frequency
+
+/** Coerce a stored/edited interval to a positive whole number of days. */
+export function normalizePmIntervalDays(value: unknown, fallback = PM_INTERVAL_DAYS): number {
+  const n = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(n) || n < 1) return fallback;
+  return Math.min(Math.round(n), 3650);
+}
+
+/** Per-trap PM interval in days (falls back to the default). */
+export function pmIntervalDays(trap?: Pick<Trap, 'pm_interval_days'> | null): number {
+  return normalizePmIntervalDays(trap?.pm_interval_days);
+}
 export const ENGINEERING_REVIEW_FAILURE_THRESHOLD = 3;
 export const ENGINEERING_REVIEW_WINDOW_MONTHS = 36;
 export const REPEAT_FAILURE_THRESHOLD = 2;
@@ -124,11 +136,6 @@ export function latestEngineeringReview(
     { engineering_reviews: reviews } as Database,
     reviews[0].trap_id,
   )[0];
-}
-
-/** Uniform PM interval — 3 months for every trap type. */
-export function pmIntervalDays(): number {
-  return PM_INTERVAL_DAYS;
 }
 
 /** Count issue PM records within a rolling window. */
@@ -266,7 +273,7 @@ export function buildTrapView(
   const reviews = engineeringReviewsForTrap(db, trap.id);
   const latestCondition = latestRecord(records);
   const latestPm = latestRecord(recordsForSource(records, 'pm'));
-  const interval = pmIntervalDays();
+  const interval = pmIntervalDays(trap);
   const review = evaluateEngineeringReview(records, reviews, today);
   const alerts = buildTrapAlerts(records, reviews, today);
 

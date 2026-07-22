@@ -15,6 +15,7 @@ import {
 import { DATA_VERSION } from '../data/seedData';
 import { uid } from './id';
 import { downloadExcel, type ExportSheet } from './export';
+import { normalizePmIntervalDays, PM_INTERVAL_DAYS } from './logic';
 
 /**
  * Canonical upload columns:
@@ -33,6 +34,7 @@ export const TRAP_TEMPLATE_HEADERS = [
   'Trap Connection',
   'Trap Type',
   'Manufacturer',
+  'PM Frequency (days)',
   'Inspection Date',
   'Inspection Result',
   'Inspection Notes',
@@ -52,6 +54,8 @@ export interface TrapImportRow {
   trap_size: string;
   orientation: string;
   line_pressure: string;
+  /** Null when the spreadsheet left the frequency blank. */
+  pm_interval_days: number | null;
   serial_number: string;
   install_date: string | null;
   inspection_date: string | null;
@@ -107,6 +111,11 @@ const HEADER_ALIASES: Record<string, TrapTemplateHeader> = {
   type: 'Trap Type',
   manufacturer: 'Manufacturer',
   mfr: 'Manufacturer',
+  'pm frequency (days)': 'PM Frequency (days)',
+  'pm frequency': 'PM Frequency (days)',
+  'pm interval (days)': 'PM Frequency (days)',
+  'pm interval': 'PM Frequency (days)',
+  'pm frequency days': 'PM Frequency (days)',
   'inspection date': 'Inspection Date',
   'pm date': 'Inspection Date',
   'last inspection date': 'Inspection Date',
@@ -241,6 +250,7 @@ function exampleRows(): unknown[][] {
       'NPT Threaded',
       'Float & Thermostatic',
       'Spirax Sarco',
+      90,
       '2026-03-15',
       'Working',
       'Ultrasonic check OK',
@@ -257,6 +267,7 @@ function exampleRows(): unknown[][] {
       'Flanged',
       'Bucket',
       'Armstrong',
+      180,
       '2026-02-20',
       'Cold trap — possible blocked',
       'Needs follow-up',
@@ -273,6 +284,7 @@ function exampleRows(): unknown[][] {
       'Socket Weld',
       'Thermodynamic',
       'TLV',
+      90,
       '',
       '',
       '',
@@ -296,6 +308,7 @@ function buildInstructionsSheet(): ExportSheet {
       ['Trap Connection', 'No', 'Free text.'],
       ['Trap Type', 'Yes', 'Free text — any type accepted.'],
       ['Manufacturer', 'No', 'Free text.'],
+      ['PM Frequency (days)', 'No', `Days between PM inspections for this trap. Blank uses ${PM_INTERVAL_DAYS} (default).`],
       ['Inspection Date', 'No', 'Optional TLV survey date (YYYY-MM-DD or MM/DD/YYYY). Shown under Inspection History → TLV, not on the faceplate. Does not start the PM schedule.'],
       ['Inspection Result', 'No', 'Free text TLV result. Only clearly good results (Working, OK, Good, Pass, etc.) count as working for fleet reliability; all other results count as issues.'],
       ['Inspection Notes', 'No', 'Free-text notes shown in TLV Inspection History.'],
@@ -444,6 +457,7 @@ export function parseTrapImportFile(buffer: ArrayBuffer, filename = ''): ParsedT
     const trapSize = cellStr(get(row, 'Size (inch)'));
     const orientation = cellStr(get(row, 'Orientation'));
     const linePressure = cellStr(get(row, 'Line Pressure'));
+    const pmFrequencyRaw = cellStr(get(row, 'PM Frequency (days)'));
     const inspectionDateRaw = get(row, 'Inspection Date');
     const inspection_result = cellStr(get(row, 'Inspection Result'));
     const inspection_notes = cellStr(get(row, 'Inspection Notes'));
@@ -459,6 +473,19 @@ export function parseTrapImportFile(buffer: ArrayBuffer, filename = ''): ParsedT
     if (!type) {
       errors.push({ rowNumber, message: 'Trap Type is required.' });
       continue;
+    }
+
+    let pm_interval_days: number | null = null;
+    if (pmFrequencyRaw) {
+      const parsedInterval = Number(pmFrequencyRaw);
+      if (!Number.isFinite(parsedInterval) || parsedInterval < 1) {
+        warnings.push({
+          rowNumber,
+          message: `Could not parse PM Frequency "${pmFrequencyRaw}"; default ${PM_INTERVAL_DAYS} days will be used.`,
+        });
+      } else {
+        pm_interval_days = normalizePmIntervalDays(parsedInterval);
+      }
     }
 
     let inspection_date = parseFlexibleDate(inspectionDateRaw);
@@ -499,6 +526,7 @@ export function parseTrapImportFile(buffer: ArrayBuffer, filename = ''): ParsedT
       trap_size: trapSize,
       orientation,
       line_pressure: linePressure,
+      pm_interval_days,
       serial_number: '',
       install_date: null,
       inspection_date,
@@ -585,6 +613,9 @@ export function applyTrapImport(
       trap_size: row.trap_size,
       orientation: row.orientation,
       line_pressure: row.line_pressure,
+      pm_interval_days: normalizePmIntervalDays(
+        row.pm_interval_days ?? existing?.pm_interval_days ?? DEFAULT_TRAP_DATASHEET.pm_interval_days,
+      ),
       serial_number: row.serial_number,
       install_date: row.install_date,
     };

@@ -202,6 +202,8 @@ export function TrapDetailPage() {
             <dd className="faceplate-value">{displayValue(view.orientation)}</dd>
             <dt className="faceplate-label">Line pressure</dt>
             <dd className="faceplate-value">{displayValue(view.line_pressure)}</dd>
+            <dt className="faceplate-label">PM frequency</dt>
+            <dd className="faceplate-value">{view.pm_interval_days} days</dd>
           </dl>
           <dl className="grid grid-cols-[minmax(9rem,auto)_1fr] items-baseline gap-x-4 gap-y-3.5">
             <dt className="faceplate-label">Trap model</dt>

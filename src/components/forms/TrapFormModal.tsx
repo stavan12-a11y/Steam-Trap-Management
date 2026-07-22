@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSteamTrap } from '../../store/SteamTrapContext';
-import { CONNECTION_TYPES, ORIENTATIONS, TRAP_TYPES } from '../../types';
+import { CONNECTION_TYPES, DEFAULT_TRAP_DATASHEET, ORIENTATIONS, TRAP_TYPES } from '../../types';
+import { normalizePmIntervalDays } from '../../utils/logic';
 import { Modal } from '../Modal';
 import { Field } from '../Field';
 
@@ -25,6 +26,7 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
   const [trapSize, setTrapSize] = useState('');
   const [orientation, setOrientation] = useState('');
   const [linePressure, setLinePressure] = useState('');
+  const [pmIntervalDays, setPmIntervalDays] = useState(String(DEFAULT_TRAP_DATASHEET.pm_interval_days));
   const [serialNumber, setSerialNumber] = useState('');
   const [installDate, setInstallDate] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +44,7 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
       setTrapSize(editing.trap_size);
       setOrientation(editing.orientation);
       setLinePressure(editing.line_pressure);
+      setPmIntervalDays(String(normalizePmIntervalDays(editing.pm_interval_days)));
       setSerialNumber(editing.serial_number);
       setInstallDate(editing.install_date ?? '');
     } else {
@@ -55,6 +58,7 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
       setTrapSize('');
       setOrientation('');
       setLinePressure('');
+      setPmIntervalDays(String(DEFAULT_TRAP_DATASHEET.pm_interval_days));
       setSerialNumber('');
       setInstallDate('');
     }
@@ -73,6 +77,12 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
       return;
     }
 
+    const interval = Number(pmIntervalDays);
+    if (!Number.isFinite(interval) || interval < 1) {
+      setError('PM frequency must be at least 1 day.');
+      return;
+    }
+
     const payload = {
       tag: tag.trim(),
       type: type.trim(),
@@ -84,6 +94,7 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
       trap_size: trapSize.trim(),
       orientation: orientation.trim(),
       line_pressure: linePressure.trim(),
+      pm_interval_days: normalizePmIntervalDays(interval),
       serial_number: serialNumber.trim(),
       install_date: installDate.trim() || null,
     };
@@ -171,6 +182,21 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
             onChange={(e) => setLinePressure(e.target.value)}
             placeholder="e.g. 150 psig"
           />
+        </Field>
+        <Field label="PM frequency (days)">
+          <input
+            type="number"
+            min={1}
+            max={3650}
+            step={1}
+            className="input"
+            value={pmIntervalDays}
+            onChange={(e) => setPmIntervalDays(e.target.value)}
+            placeholder="90"
+          />
+          <p className="mt-1 text-xs text-slate-500">
+            Days between PM inspections for this trap. Default is 90 (~3 months).
+          </p>
         </Field>
         <Field label="Manufacturer">
           <input

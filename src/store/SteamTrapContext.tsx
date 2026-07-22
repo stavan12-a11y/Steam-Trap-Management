@@ -24,7 +24,7 @@ import type {
 } from '../types';
 import { ISSUE_TYPES, DEFAULT_TRAP_DATASHEET } from '../types';
 import { DATA_VERSION } from '../data/seedData';
-import { todayISO } from '../utils/logic';
+import { todayISO, normalizePmIntervalDays } from '../utils/logic';
 import { upsertTodayKPISnapshot } from '../utils/kpiSnapshots';
 import { uid } from '../utils/id';
 import {
@@ -52,6 +52,9 @@ function normalizeTrap(
     type: t.type,
     location: t.location,
     equipment_id: t.equipment_id,
+    pm_interval_days: normalizePmIntervalDays(
+      t.pm_interval_days ?? DEFAULT_TRAP_DATASHEET.pm_interval_days,
+    ),
   };
 }
 

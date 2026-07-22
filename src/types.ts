@@ -76,6 +76,11 @@ export interface Trap {
   orientation: string;
   /** Operating line pressure, e.g. "150 psig". */
   line_pressure: string;
+  /**
+   * Days between PM-program inspections for this trap.
+   * Defaults to 90 (≈3 months); editable per trap.
+   */
+  pm_interval_days: number;
   serial_number: string;
   install_date: string | null;
 }
@@ -219,6 +224,7 @@ export const DEFAULT_TRAP_DATASHEET: Pick<
   | 'trap_size'
   | 'orientation'
   | 'line_pressure'
+  | 'pm_interval_days'
   | 'serial_number'
   | 'install_date'
 > = {
@@ -228,6 +234,7 @@ export const DEFAULT_TRAP_DATASHEET: Pick<
   trap_size: '',
   orientation: '',
   line_pressure: '',
+  pm_interval_days: 90,
   serial_number: '',
   install_date: null,
 };

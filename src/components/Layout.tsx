@@ -4,7 +4,6 @@ import {
   Droplets,
   Gauge,
   LogOut,
-  Settings,
   Table2,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
@@ -14,7 +13,6 @@ const NAV = [
   { to: '/', label: 'Dashboard', icon: Gauge },
   { to: '/equipment', label: 'Equipment', icon: Database },
   { to: '/traps', label: 'Traps', icon: Droplets },
-  { to: '/settings', label: 'Settings', icon: Settings },
   { to: '/reporting', label: 'Reporting', icon: Table2 },
 ];
 
