@@ -487,19 +487,28 @@ export function priorityBreakdown(views: TrapView[]): PriorityBreakdown[] {
 }
 
 export interface IssueTypeCount {
-  type: IssueType;
+  /** Display label — predetermined type or free-text inspection result. */
+  type: string;
   count: number;
 }
 
-/** Count current active issues by type. */
+/**
+ * Count current active issues by label, sorted by frequency (highest first).
+ * Uses issue_type when set; otherwise the free-text latest_result (TLV uploads).
+ */
 export function activeIssuesByType(views: TrapView[]): IssueTypeCount[] {
-  const counts = new Map<IssueType, number>();
+  const counts = new Map<string, number>();
   for (const v of views) {
-    if (v.status === 'Issue' && v.issue_type) {
-      counts.set(v.issue_type, (counts.get(v.issue_type) ?? 0) + 1);
-    }
+    if (v.status !== 'Issue') continue;
+    const label =
+      v.issue_type?.trim() ||
+      v.latest_result?.trim() ||
+      'Unspecified';
+    counts.set(label, (counts.get(label) ?? 0) + 1);
   }
-  return [...counts.entries()].map(([type, count]) => ({ type, count }));
+  return [...counts.entries()]
+    .map(([type, count]) => ({ type, count }))
+    .sort((a, b) => b.count - a.count || a.type.localeCompare(b.type));
 }
 
 export interface MonthlyPMCount {

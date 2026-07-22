@@ -125,17 +125,32 @@ export function KPIChartsPanel() {
           )}
         </ChartCard>
 
-        <ChartCard title="Active Issues by Type" subtitle="Current open issues only">
+        <ChartCard title="Active Issues by Type" subtitle="All current issues, sorted by frequency">
           {issueTypes.length === 0 ? (
             <EmptyChart message="No active issues" />
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={issueTypes} layout="vertical" margin={{ left: 8, right: 16 }}>
+            <ResponsiveContainer width="100%" height={Math.max(260, issueTypes.length * 36)}>
+              <BarChart
+                data={issueTypes}
+                layout="vertical"
+                margin={{ left: 8, right: 16, top: 4, bottom: 4 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                 <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="type" width={72} tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Bar dataKey="count" fill="#dc2626" radius={[0, 4, 4, 0]} />
+                <YAxis
+                  type="category"
+                  dataKey="type"
+                  width={120}
+                  tick={{ fontSize: 10 }}
+                  tickFormatter={(value: string) =>
+                    value.length > 18 ? `${value.slice(0, 16)}…` : value
+                  }
+                />
+                <Tooltip
+                  formatter={(value) => [`${value}`, 'Count']}
+                  labelFormatter={(label) => String(label)}
+                />
+                <Bar dataKey="count" name="Count" fill="#dc2626" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
