@@ -1,5 +1,5 @@
 import type { Database, KPISnapshot, Trap, TrapTypeName } from '../types';
-import { CONNECTION_TYPES, DEFAULT_TRAP_DATASHEET } from '../types';
+import { CONNECTION_TYPES, DEFAULT_TRAP_DATASHEET, ORIENTATIONS } from '../types';
 import { buildKPISnapshot } from '../utils/kpiSnapshots';
 
 export const DATA_VERSION = 9;
@@ -28,17 +28,30 @@ const TYPE_SPECS: Record<TrapTypeName, { manufacturers: string[]; models: string
 };
 
 const TRAP_SIZES = ['1/2"', '3/4"', '1"', '1-1/2"', '2"'] as const;
+const LINE_PRESSURES = ['15 psig', '50 psig', '100 psig', '150 psig', '250 psig'] as const;
 
 function datasheetFor(
   tag: string,
   type: TrapTypeName,
-): Pick<Trap, 'manufacturer' | 'model' | 'connection_type' | 'trap_size' | 'serial_number' | 'install_date'> {
+): Pick<
+  Trap,
+  | 'manufacturer'
+  | 'model'
+  | 'connection_type'
+  | 'trap_size'
+  | 'orientation'
+  | 'line_pressure'
+  | 'serial_number'
+  | 'install_date'
+> {
   const num = parseInt(tag.replace('ST-', ''), 10) || 1;
   const spec = TYPE_SPECS[type];
   const manufacturer = spec.manufacturers[num % spec.manufacturers.length];
   const model = spec.models[num % spec.models.length];
   const connection_type = CONNECTION_TYPES[num % CONNECTION_TYPES.length];
   const trap_size = TRAP_SIZES[num % TRAP_SIZES.length];
+  const orientation = ORIENTATIONS[num % ORIENTATIONS.length];
+  const line_pressure = LINE_PRESSURES[num % LINE_PRESSURES.length];
   const year = 2015 + (num % 10);
   const month = String((num % 12) + 1).padStart(2, '0');
   const day = String((num % 28) + 1).padStart(2, '0');
@@ -50,7 +63,16 @@ function datasheetFor(
   const serial_number = `${prefix}-${year}-${String(1000 + num).slice(-4)}`;
   const install_date = `${year}-${month}-${day}`;
 
-  return { manufacturer, model, connection_type, trap_size, serial_number, install_date };
+  return {
+    manufacturer,
+    model,
+    connection_type,
+    trap_size,
+    orientation,
+    line_pressure,
+    serial_number,
+    install_date,
+  };
 }
 
 function trap(

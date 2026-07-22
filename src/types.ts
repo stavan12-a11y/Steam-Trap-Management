@@ -16,6 +16,9 @@ export const CONNECTION_TYPES = [
 ] as const;
 export type ConnectionType = (typeof CONNECTION_TYPES)[number];
 
+export const ORIENTATIONS = ["Horizontal", "Vertical", "Angle"] as const;
+export type Orientation = (typeof ORIENTATIONS)[number];
+
 export const TRAP_STATUSES = ["Working", "Issue"] as const;
 export type TrapStatus = (typeof TRAP_STATUSES)[number];
 
@@ -64,6 +67,10 @@ export interface Trap {
   model: string;
   connection_type: string;
   trap_size: string;
+  /** Mounting orientation, e.g. Horizontal / Vertical. */
+  orientation: string;
+  /** Operating line pressure, e.g. "150 psig". */
+  line_pressure: string;
   serial_number: string;
   install_date: string | null;
 }
@@ -187,12 +194,21 @@ export interface TrapView extends Trap {
 
 export const DEFAULT_TRAP_DATASHEET: Pick<
   Trap,
-  'manufacturer' | 'model' | 'connection_type' | 'trap_size' | 'serial_number' | 'install_date'
+  | 'manufacturer'
+  | 'model'
+  | 'connection_type'
+  | 'trap_size'
+  | 'orientation'
+  | 'line_pressure'
+  | 'serial_number'
+  | 'install_date'
 > = {
   manufacturer: '',
   model: '',
   connection_type: '',
   trap_size: '',
+  orientation: '',
+  line_pressure: '',
   serial_number: '',
   install_date: null,
 };

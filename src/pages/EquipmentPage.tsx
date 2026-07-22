@@ -44,8 +44,11 @@ export function EquipmentPage() {
 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Equipment faceplate</p>
           <h2 className="text-2xl font-bold text-slate-900">{equipment.name}</h2>
-          <p className="text-sm text-slate-500">{equipment.area}</p>
+          <p className="mt-1 text-sm text-slate-600">
+            <span className="font-semibold text-slate-500">Area:</span> {equipment.area || '—'}
+          </p>
         </div>
         <button className="btn-primary" onClick={() => setShowAddTrap(true)}>
           <Plus className="h-4 w-4" />
@@ -79,10 +82,16 @@ export function EquipmentPage() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  <th className="px-4 py-2.5">Tag</th>
+                  <th className="px-4 py-2.5">Trap ID</th>
                   <th className="px-4 py-2.5">Priority</th>
-                  <th className="px-4 py-2.5">Type</th>
                   <th className="px-4 py-2.5">Location</th>
+                  <th className="px-4 py-2.5">Orientation</th>
+                  <th className="px-4 py-2.5">Line pressure</th>
+                  <th className="px-4 py-2.5">Model</th>
+                  <th className="px-4 py-2.5">Size</th>
+                  <th className="px-4 py-2.5">Connection</th>
+                  <th className="px-4 py-2.5">Type</th>
+                  <th className="px-4 py-2.5">Manufacturer</th>
                   <th className="px-4 py-2.5">Status</th>
                   <th className="px-4 py-2.5 text-right">Next PM</th>
                   <th className="px-4 py-2.5 text-right">Due</th>
@@ -104,8 +113,14 @@ export function EquipmentPage() {
                     <td className="px-4 py-2.5">
                       <PriorityBadge priority={v.priority} />
                     </td>
-                    <td className="px-4 py-2.5">{v.type}</td>
                     <td className="px-4 py-2.5">{v.location}</td>
+                    <td className="px-4 py-2.5">{v.orientation || '—'}</td>
+                    <td className="px-4 py-2.5">{v.line_pressure || '—'}</td>
+                    <td className="px-4 py-2.5">{v.model || '—'}</td>
+                    <td className="px-4 py-2.5">{v.trap_size || '—'}</td>
+                    <td className="px-4 py-2.5">{v.connection_type || '—'}</td>
+                    <td className="px-4 py-2.5">{v.type}</td>
+                    <td className="px-4 py-2.5">{v.manufacturer || '—'}</td>
                     <td className="px-4 py-2.5">
                       <StatusBadge status={v.status} issueType={v.issue_type} />
                     </td>

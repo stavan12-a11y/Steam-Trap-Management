@@ -164,8 +164,7 @@ export function ImportDataModal({ open, onClose }: ImportDataModalProps) {
             <h3 className="text-sm font-bold text-slate-900">3. Upload filled workbook</h3>
             <p className="mt-1 text-sm text-slate-600">
               Accepts <span className="font-semibold">.xlsx</span>, <span className="font-semibold">.xls</span>,
-              or <span className="font-semibold">.csv</span>. Required columns: Trap Tag, Type, Equipment
-              Name.
+              or <span className="font-semibold">.csv</span>. Required columns: Trap ID, Trap Type, Equipment.
             </p>
             <input
               ref={fileInputRef}
@@ -226,11 +225,12 @@ export function ImportDataModal({ open, onClose }: ImportDataModalProps) {
                   <table className="min-w-full text-left text-xs">
                     <thead className="bg-slate-50 text-slate-500">
                       <tr>
-                        <th className="px-3 py-2 font-semibold">Tag</th>
+                        <th className="px-3 py-2 font-semibold">Trap ID</th>
                         <th className="px-3 py-2 font-semibold">Type</th>
                         <th className="px-3 py-2 font-semibold">Equipment</th>
+                        <th className="px-3 py-2 font-semibold">Area</th>
                         <th className="px-3 py-2 font-semibold">Location</th>
-                        <th className="px-3 py-2 font-semibold">Manufacturer</th>
+                        <th className="px-3 py-2 font-semibold">Model</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -239,8 +239,9 @@ export function ImportDataModal({ open, onClose }: ImportDataModalProps) {
                           <td className="px-3 py-2 font-medium text-slate-900">{r.tag}</td>
                           <td className="px-3 py-2 text-slate-600">{r.type}</td>
                           <td className="px-3 py-2 text-slate-600">{r.equipment_name}</td>
+                          <td className="px-3 py-2 text-slate-600">{r.equipment_area}</td>
                           <td className="px-3 py-2 text-slate-600">{r.location}</td>
-                          <td className="px-3 py-2 text-slate-600">{r.manufacturer || '—'}</td>
+                          <td className="px-3 py-2 text-slate-600">{r.model || '—'}</td>
                         </tr>
                       ))}
                     </tbody>

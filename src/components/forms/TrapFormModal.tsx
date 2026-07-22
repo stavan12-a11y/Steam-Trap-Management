@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSteamTrap } from '../../store/SteamTrapContext';
-import { CONNECTION_TYPES, TRAP_TYPES, type TrapTypeName } from '../../types';
+import { CONNECTION_TYPES, ORIENTATIONS, TRAP_TYPES, type TrapTypeName } from '../../types';
 import { Modal } from '../Modal';
 import { Field } from '../Field';
 
@@ -23,6 +23,8 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
   const [model, setModel] = useState('');
   const [connectionType, setConnectionType] = useState('');
   const [trapSize, setTrapSize] = useState('');
+  const [orientation, setOrientation] = useState('');
+  const [linePressure, setLinePressure] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
   const [installDate, setInstallDate] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +40,8 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
       setModel(editing.model);
       setConnectionType(editing.connection_type);
       setTrapSize(editing.trap_size);
+      setOrientation(editing.orientation);
+      setLinePressure(editing.line_pressure);
       setSerialNumber(editing.serial_number);
       setInstallDate(editing.install_date ?? '');
     } else {
@@ -49,6 +53,8 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
       setModel('');
       setConnectionType('');
       setTrapSize('');
+      setOrientation('');
+      setLinePressure('');
       setSerialNumber('');
       setInstallDate('');
     }
@@ -76,6 +82,8 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
       model: model.trim(),
       connection_type: connectionType.trim(),
       trap_size: trapSize.trim(),
+      orientation: orientation.trim(),
+      line_pressure: linePressure.trim(),
       serial_number: serialNumber.trim(),
       install_date: installDate.trim() || null,
     };
@@ -107,10 +115,10 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {error && <p className="text-sm font-medium text-red-600 sm:col-span-2">{error}</p>}
-        <Field label="Tag" required>
+        <Field label="Trap ID" required>
           <input className="input" value={tag} onChange={(e) => setTag(e.target.value)} placeholder="ST-0017" />
         </Field>
-        <Field label="Type" required>
+        <Field label="Trap type" required>
           <select className="input" value={type} onChange={(e) => setType(e.target.value as TrapTypeName)}>
             {TRAP_TYPES.map((t) => (
               <option key={t} value={t}>
@@ -123,7 +131,7 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
           <select className="input" value={equipmentId} onChange={(e) => setEquipmentId(e.target.value)}>
             {data.equipment.map((eq) => (
               <option key={eq.id} value={eq.id}>
-                {eq.name}
+                {eq.name} ({eq.area || 'No area'})
               </option>
             ))}
           </select>
@@ -136,6 +144,24 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
             placeholder="e.g. Boiler 1 — Drip leg"
           />
         </Field>
+        <Field label="Orientation">
+          <select className="input" value={orientation} onChange={(e) => setOrientation(e.target.value)}>
+            <option value="">— Select —</option>
+            {ORIENTATIONS.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Line pressure">
+          <input
+            className="input"
+            value={linePressure}
+            onChange={(e) => setLinePressure(e.target.value)}
+            placeholder="e.g. 150 psig"
+          />
+        </Field>
         <Field label="Manufacturer">
           <input
             className="input"
@@ -144,7 +170,7 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
             placeholder="e.g. Spirax Sarco"
           />
         </Field>
-        <Field label="Model">
+        <Field label="Trap model">
           <input
             className="input"
             value={model}
@@ -152,7 +178,7 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
             placeholder="e.g. IB-15"
           />
         </Field>
-        <Field label="Connection type">
+        <Field label="Trap connection">
           <select
             className="input"
             value={connectionType}
@@ -166,12 +192,12 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
             ))}
           </select>
         </Field>
-        <Field label="Trap size">
+        <Field label="Size (inch)">
           <input
             className="input"
             value={trapSize}
             onChange={(e) => setTrapSize(e.target.value)}
-            placeholder={'e.g. 3/4"'}
+            placeholder={'e.g. 3/4'}
           />
         </Field>
         <Field label="Serial number">

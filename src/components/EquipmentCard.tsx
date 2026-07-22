@@ -25,7 +25,9 @@ export function EquipmentCard({ rollup, onEdit }: EquipmentCardProps) {
         <h3 className="truncate text-base font-bold text-slate-900">{rollup.name}</h3>
         <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-slate-500">
           <MapPin className="h-3.5 w-3.5 shrink-0" />
-          {rollup.area || '—'}
+          <span>
+            <span className="font-semibold text-slate-600">Area:</span> {rollup.area || '—'}
+          </span>
         </p>
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
           <span className="flex items-center gap-1 text-xs text-slate-500">

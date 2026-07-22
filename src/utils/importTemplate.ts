@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx';
 import {
   CONNECTION_TYPES,
   DEFAULT_TRAP_DATASHEET,
+  ORIENTATIONS,
   TRAP_TYPES,
   type AppData,
   type Equipment,
@@ -12,19 +13,23 @@ import { DATA_VERSION } from '../data/seedData';
 import { uid } from './id';
 import { downloadExcel, type ExportSheet } from './export';
 
-/** Canonical column headers for the trap upload template (row 1 of the Traps sheet). */
+/**
+ * Canonical upload columns — order matches the field survey list:
+ * Area → Equipment → Trap ID → Location → Orientation → Line Pressure →
+ * Trap Model → Size (inch) → Trap Connection → Trap Type → Manufacturer
+ */
 export const TRAP_TEMPLATE_HEADERS = [
-  'Trap Tag',
-  'Type',
+  'Area',
+  'Equipment',
+  'Trap ID',
   'Location',
-  'Equipment Name',
-  'Equipment Area',
+  'Orientation',
+  'Line Pressure',
+  'Trap Model',
+  'Size (inch)',
+  'Trap Connection',
+  'Trap Type',
   'Manufacturer',
-  'Model',
-  'Connection Type',
-  'Trap Size',
-  'Serial Number',
-  'Install Date',
 ] as const;
 
 export type TrapTemplateHeader = (typeof TRAP_TEMPLATE_HEADERS)[number];
@@ -39,6 +44,8 @@ export interface TrapImportRow {
   model: string;
   connection_type: string;
   trap_size: string;
+  orientation: string;
+  line_pressure: string;
   serial_number: string;
   install_date: string | null;
   /** 1-based Excel row number for error messages. */
@@ -66,33 +73,35 @@ export interface ImportApplyResult {
 }
 
 const HEADER_ALIASES: Record<string, TrapTemplateHeader> = {
-  'trap tag': 'Trap Tag',
-  tag: 'Trap Tag',
-  'trap id': 'Trap Tag',
-  type: 'Type',
-  'trap type': 'Type',
+  area: 'Area',
+  'equipment area': 'Area',
+  equipment: 'Equipment',
+  'equipment name': 'Equipment',
+  'trap id': 'Trap ID',
+  'trap tag': 'Trap ID',
+  tag: 'Trap ID',
   location: 'Location',
-  'equipment name': 'Equipment Name',
-  equipment: 'Equipment Name',
-  'equipment area': 'Equipment Area',
-  area: 'Equipment Area',
+  orientation: 'Orientation',
+  'line pressure': 'Line Pressure',
+  pressure: 'Line Pressure',
+  'trap model': 'Trap Model',
+  model: 'Trap Model',
+  'size (inch)': 'Size (inch)',
+  'size inch': 'Size (inch)',
+  size: 'Size (inch)',
+  'trap size': 'Size (inch)',
+  'trap connection': 'Trap Connection',
+  connection: 'Trap Connection',
+  'connection type': 'Trap Connection',
+  'trap type': 'Trap Type',
+  type: 'Trap Type',
   manufacturer: 'Manufacturer',
   mfr: 'Manufacturer',
-  model: 'Model',
-  'connection type': 'Connection Type',
-  connection: 'Connection Type',
-  'trap size': 'Trap Size',
-  size: 'Trap Size',
-  'serial number': 'Serial Number',
-  serial: 'Serial Number',
-  'install date': 'Install Date',
-  installed: 'Install Date',
 };
 
 function cellStr(value: unknown): string {
   if (value === null || value === undefined) return '';
   if (typeof value === 'number' && Number.isFinite(value)) {
-    // Excel date serials are handled separately; plain numbers stringify cleanly.
     return String(value);
   }
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
@@ -124,10 +133,16 @@ function normalizeConnection(raw: string): string {
   return exact ?? cleaned;
 }
 
+function normalizeOrientation(raw: string): string {
+  const cleaned = raw.trim();
+  if (!cleaned) return '';
+  const exact = ORIENTATIONS.find((o) => o.toLowerCase() === cleaned.toLowerCase());
+  return exact ?? cleaned;
+}
+
 /** Convert an Excel serial date (days since 1899-12-30) to YYYY-MM-DD. */
 function excelSerialToISO(serial: number): string | null {
   if (!Number.isFinite(serial) || serial < 1) return null;
-  // Excel's leap-year bug: serials >= 60 are offset by one day vs the real calendar.
   const whole = Math.floor(serial);
   const utc = Date.UTC(1899, 11, 30) + whole * 86400000;
   const d = new Date(utc);
@@ -144,7 +159,6 @@ export function parseInstallDate(value: unknown): string | null {
   }
 
   if (typeof value === 'number' && Number.isFinite(value)) {
-    // With cellDates:true SheetJS usually gives Date objects; fall back for raw serials.
     const fromSSF =
       typeof XLSX.SSF?.parse_date_code === 'function'
         ? XLSX.SSF.parse_date_code(value)
@@ -180,43 +194,43 @@ export function parseInstallDate(value: unknown): string | null {
 function exampleRows(): unknown[][] {
   return [
     [
+      'Central Utility',
+      'Boiler Plant 1',
       'ST-1001',
-      'Float & Thermostatic',
       'Boiler Room — Drip leg',
-      'Boiler Plant 1',
-      'Central Utility',
-      'Spirax Sarco',
+      'Horizontal',
+      '150 psig',
       'FT-14',
+      '3/4',
       'NPT Threaded',
-      '3/4"',
-      'SS-2020-1001',
-      '2020-03-15',
+      'Float & Thermostatic',
+      'Spirax Sarco',
     ],
     [
-      'ST-1002',
-      'Inverted Bucket',
-      'Header drip',
-      'Boiler Plant 1',
       'Central Utility',
-      'Armstrong',
+      'Boiler Plant 1',
+      'ST-1002',
+      'Header drip',
+      'Vertical',
+      '100 psig',
       'IB-15',
+      '1',
       'Flanged',
-      '1"',
-      'AR-2019-2204',
-      '2019-11-02',
+      'Inverted Bucket',
+      'Armstrong',
     ],
     [
-      'ST-2001',
-      'Thermodynamic',
-      'Trace line — North',
-      'Campus Loop North',
       'Distribution',
-      'TLV',
+      'Campus Loop North',
+      'ST-2001',
+      'Trace line — North',
+      'Horizontal',
+      '50 psig',
       'A3N',
+      '1/2',
       'Socket Weld',
-      '1/2"',
-      '',
-      '',
+      'Thermodynamic',
+      'TLV',
     ],
   ];
 }
@@ -226,20 +240,20 @@ function buildInstructionsSheet(): ExportSheet {
     name: 'Instructions',
     headers: ['Field', 'Required', 'Notes'],
     rows: [
-      ['Trap Tag', 'Yes', 'Unique identifier for the trap (e.g. ST-1001). Duplicate tags update existing traps in Merge mode.'],
-      ['Type', 'Yes', `One of: ${TRAP_TYPES.join('; ')}`],
-      ['Location', 'No', 'Physical location description. Defaults to "Unspecified" if blank.'],
-      ['Equipment Name', 'Yes', 'Equipment this trap belongs to. New equipment is created automatically if the name is new.'],
-      ['Equipment Area', 'No', 'Area/building for the equipment. Used when creating new equipment; ignored if equipment already exists.'],
-      ['Manufacturer', 'No', 'Trap manufacturer (datasheet).'],
-      ['Model', 'No', 'Trap model (datasheet).'],
-      ['Connection Type', 'No', `Preferred values: ${CONNECTION_TYPES.join('; ')}. Other values are accepted as free text.`],
-      ['Trap Size', 'No', 'e.g. 1/2", 3/4", 1"'],
-      ['Serial Number', 'No', 'Manufacturer serial number.'],
-      ['Install Date', 'No', 'Use YYYY-MM-DD (preferred) or MM/DD/YYYY.'],
+      ['Area', 'No', 'Shown on the equipment faceplate. Used when creating new equipment; ignored if that equipment already exists.'],
+      ['Equipment', 'Yes', 'Equipment name this trap belongs to. New equipment is created automatically if the name is new.'],
+      ['Trap ID', 'Yes', 'Unique trap identifier (e.g. ST-1001). Duplicate IDs update existing traps in Merge mode.'],
+      ['Location', 'No', 'Physical location of the trap. Defaults to "Unspecified" if blank.'],
+      ['Orientation', 'No', `Preferred values: ${ORIENTATIONS.join('; ')}. Other values are accepted.`],
+      ['Line Pressure', 'No', 'Operating line pressure (e.g. 150 psig).'],
+      ['Trap Model', 'No', 'Manufacturer model number.'],
+      ['Size (inch)', 'No', 'Trap size in inches (e.g. 1/2, 3/4, 1).'],
+      ['Trap Connection', 'No', `Preferred values: ${CONNECTION_TYPES.join('; ')}. Other values are accepted.`],
+      ['Trap Type', 'Yes', `One of: ${TRAP_TYPES.join('; ')}`],
+      ['Manufacturer', 'No', 'Trap manufacturer.'],
       ['', '', ''],
-      ['How to use', '', '1) Fill rows on the Traps sheet (delete the example rows or keep them). 2) Save the file. 3) On the dashboard, click Import data… and upload this workbook.'],
-      ['Merge mode', '', 'Adds new traps and updates existing traps that share the same Trap Tag. Existing equipment is reused by name.'],
+      ['How to use', '', '1) Fill rows on the Traps sheet (replace or keep the example rows). 2) Save the file. 3) On the dashboard, click Import data… and upload this workbook.'],
+      ['Merge mode', '', 'Adds new traps and updates existing traps that share the same Trap ID. Existing equipment is reused by name.'],
       ['Replace mode', '', 'Clears all current equipment, traps, and history, then imports only what is in this file.'],
     ],
   };
@@ -254,14 +268,14 @@ function buildTrapsTemplateSheet(): ExportSheet {
 }
 
 function buildReferenceSheet(): ExportSheet {
-  const maxLen = Math.max(TRAP_TYPES.length, CONNECTION_TYPES.length);
+  const maxLen = Math.max(TRAP_TYPES.length, CONNECTION_TYPES.length, ORIENTATIONS.length);
   const rows: unknown[][] = [];
   for (let i = 0; i < maxLen; i++) {
-    rows.push([TRAP_TYPES[i] ?? '', CONNECTION_TYPES[i] ?? '']);
+    rows.push([TRAP_TYPES[i] ?? '', CONNECTION_TYPES[i] ?? '', ORIENTATIONS[i] ?? '']);
   }
   return {
     name: 'Allowed Values',
-    headers: ['Trap Types', 'Connection Types'],
+    headers: ['Trap Types', 'Trap Connections', 'Orientations'],
     rows,
   };
 }
@@ -287,14 +301,13 @@ function findTrapsSheet(wb: XLSX.WorkBook): XLSX.WorkSheet | null {
   const preferred = wb.SheetNames.find((n) => n.trim().toLowerCase() === 'traps');
   if (preferred) return wb.Sheets[preferred] ?? null;
 
-  // Fall back to the first sheet that looks like it has our headers.
   for (const name of wb.SheetNames) {
     const ws = wb.Sheets[name];
     if (!ws) continue;
     const matrix = sheetToMatrix(ws);
     const headerRow = matrix[0] ?? [];
     const mapped = headerRow.map(normalizeHeader).filter(Boolean);
-    if (mapped.includes('Trap Tag') && mapped.includes('Type') && mapped.includes('Equipment Name')) {
+    if (mapped.includes('Trap ID') && mapped.includes('Trap Type') && mapped.includes('Equipment')) {
       return ws;
     }
   }
@@ -340,7 +353,7 @@ export function parseTrapImportFile(buffer: ArrayBuffer, filename = ''): ParsedT
     if (header && !colIndex.has(header)) colIndex.set(header, idx);
   });
 
-  const missingRequired = (['Trap Tag', 'Type', 'Equipment Name'] as const).filter(
+  const missingRequired = (['Trap ID', 'Trap Type', 'Equipment'] as const).filter(
     (h) => !colIndex.has(h),
   );
   if (missingRequired.length > 0) {
@@ -372,24 +385,24 @@ export function parseTrapImportFile(buffer: ArrayBuffer, filename = ''): ParsedT
     const isBlank = row.every((c) => cellStr(c) === '');
     if (isBlank) continue;
 
-    const tag = cellStr(get(row, 'Trap Tag'));
-    const typeRaw = cellStr(get(row, 'Type'));
-    const equipmentName = cellStr(get(row, 'Equipment Name'));
+    const tag = cellStr(get(row, 'Trap ID'));
+    const typeRaw = cellStr(get(row, 'Trap Type'));
+    const equipmentName = cellStr(get(row, 'Equipment'));
     const location = cellStr(get(row, 'Location'));
-    const equipmentArea = cellStr(get(row, 'Equipment Area'));
+    const equipmentArea = cellStr(get(row, 'Area'));
     const manufacturer = cellStr(get(row, 'Manufacturer'));
-    const model = cellStr(get(row, 'Model'));
-    const connectionRaw = cellStr(get(row, 'Connection Type'));
-    const trapSize = cellStr(get(row, 'Trap Size'));
-    const serialNumber = cellStr(get(row, 'Serial Number'));
-    const installRaw = get(row, 'Install Date');
+    const model = cellStr(get(row, 'Trap Model'));
+    const connectionRaw = cellStr(get(row, 'Trap Connection'));
+    const trapSize = cellStr(get(row, 'Size (inch)'));
+    const orientationRaw = cellStr(get(row, 'Orientation'));
+    const linePressure = cellStr(get(row, 'Line Pressure'));
 
     if (!tag) {
-      errors.push({ rowNumber, message: 'Trap Tag is required.' });
+      errors.push({ rowNumber, message: 'Trap ID is required.' });
       continue;
     }
     if (!equipmentName) {
-      errors.push({ rowNumber, message: 'Equipment Name is required.' });
+      errors.push({ rowNumber, message: 'Equipment is required.' });
       continue;
     }
 
@@ -397,24 +410,16 @@ export function parseTrapImportFile(buffer: ArrayBuffer, filename = ''): ParsedT
     if (!type) {
       errors.push({
         rowNumber,
-        message: `Invalid Type "${typeRaw}". Use one of: ${TRAP_TYPES.join(', ')}.`,
+        message: `Invalid Trap Type "${typeRaw}". Use one of: ${TRAP_TYPES.join(', ')}.`,
       });
       continue;
-    }
-
-    const installDate = parseInstallDate(installRaw);
-    if (cellStr(installRaw) && !installDate) {
-      warnings.push({
-        rowNumber,
-        message: `Could not parse Install Date "${cellStr(installRaw)}"; leaving blank.`,
-      });
     }
 
     const tagKey = tag.toLowerCase();
     if (seenTags.has(tagKey)) {
       warnings.push({
         rowNumber,
-        message: `Duplicate Trap Tag "${tag}" also appears on row ${seenTags.get(tagKey)}. The last row wins.`,
+        message: `Duplicate Trap ID "${tag}" also appears on row ${seenTags.get(tagKey)}. The last row wins.`,
       });
     }
     seenTags.set(tagKey, rowNumber);
@@ -426,11 +431,21 @@ export function parseTrapImportFile(buffer: ArrayBuffer, filename = ''): ParsedT
     ) {
       warnings.push({
         rowNumber,
-        message: `Connection Type "${connectionRaw}" is not in the preferred list; it will still be imported.`,
+        message: `Trap Connection "${connectionRaw}" is not in the preferred list; it will still be imported.`,
       });
     }
 
-    // Later duplicate tags overwrite earlier ones in the parsed list.
+    const orientation = normalizeOrientation(orientationRaw);
+    if (
+      orientationRaw &&
+      !ORIENTATIONS.some((o) => o.toLowerCase() === orientationRaw.toLowerCase())
+    ) {
+      warnings.push({
+        rowNumber,
+        message: `Orientation "${orientationRaw}" is not in the preferred list; it will still be imported.`,
+      });
+    }
+
     const existingIdx = rows.findIndex((r) => r.tag.toLowerCase() === tagKey);
     const parsed: TrapImportRow = {
       tag,
@@ -442,8 +457,10 @@ export function parseTrapImportFile(buffer: ArrayBuffer, filename = ''): ParsedT
       model,
       connection_type,
       trap_size: trapSize,
-      serial_number: serialNumber,
-      install_date: installDate,
+      orientation,
+      line_pressure: linePressure,
+      serial_number: '',
+      install_date: null,
       rowNumber,
     };
     if (existingIdx >= 0) rows[existingIdx] = parsed;
@@ -522,6 +539,8 @@ export function applyTrapImport(
       model: row.model,
       connection_type: row.connection_type,
       trap_size: row.trap_size,
+      orientation: row.orientation,
+      line_pressure: row.line_pressure,
       serial_number: row.serial_number,
       install_date: row.install_date,
     };

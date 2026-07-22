@@ -52,11 +52,16 @@ export function TrapsPage() {
     return traps.filter((t) => {
       if (!f.match(t)) return false;
       if (!needle) return true;
-      return (
+        return (
         t.tag.toLowerCase().includes(needle) ||
         t.location.toLowerCase().includes(needle) ||
         t.type.toLowerCase().includes(needle) ||
-        t.equipment_name.toLowerCase().includes(needle)
+        t.equipment_name.toLowerCase().includes(needle) ||
+        t.equipment_area.toLowerCase().includes(needle) ||
+        t.manufacturer.toLowerCase().includes(needle) ||
+        t.model.toLowerCase().includes(needle) ||
+        t.orientation.toLowerCase().includes(needle) ||
+        t.line_pressure.toLowerCase().includes(needle)
       );
     });
   }, [traps, filter, q]);
@@ -104,18 +109,25 @@ export function TrapsPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <th className="px-4 py-2.5">Tag</th>
-                <th className="px-4 py-2.5">Priority</th>
-                <th className="px-4 py-2.5">Type</th>
-                <th className="px-4 py-2.5">Location</th>
-                <th className="px-4 py-2.5">Equipment</th>
-                <th className="px-4 py-2.5">Status</th>
-                <th className="px-4 py-2.5 text-right">Due</th>
-                <th className="px-4 py-2.5" />
-              </tr>
-            </thead>
-            <tbody>
+                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <th className="px-4 py-2.5">Trap ID</th>
+                  <th className="px-4 py-2.5">Priority</th>
+                  <th className="px-4 py-2.5">Area</th>
+                  <th className="px-4 py-2.5">Equipment</th>
+                  <th className="px-4 py-2.5">Location</th>
+                  <th className="px-4 py-2.5">Orientation</th>
+                  <th className="px-4 py-2.5">Line pressure</th>
+                  <th className="px-4 py-2.5">Model</th>
+                  <th className="px-4 py-2.5">Size</th>
+                  <th className="px-4 py-2.5">Connection</th>
+                  <th className="px-4 py-2.5">Type</th>
+                  <th className="px-4 py-2.5">Manufacturer</th>
+                  <th className="px-4 py-2.5">Status</th>
+                  <th className="px-4 py-2.5 text-right">Due</th>
+                  <th className="px-4 py-2.5" />
+                </tr>
+              </thead>
+              <tbody>
               {filtered.map((t) => (
                 <tr key={t.id} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className="px-4 py-2.5">
@@ -131,13 +143,20 @@ export function TrapsPage() {
                   <td className="px-4 py-2.5">
                     <PriorityBadge priority={t.priority} />
                   </td>
-                  <td className="px-4 py-2.5">{t.type}</td>
-                  <td className="px-4 py-2.5">{t.location}</td>
+                  <td className="px-4 py-2.5">{t.equipment_area || '—'}</td>
                   <td className="px-4 py-2.5">
                     <Link to={`/equipment/${t.equipment_id}`} className="text-maroon-800 hover:underline">
                       {t.equipment_name}
                     </Link>
                   </td>
+                  <td className="px-4 py-2.5">{t.location}</td>
+                  <td className="px-4 py-2.5">{t.orientation || '—'}</td>
+                  <td className="px-4 py-2.5">{t.line_pressure || '—'}</td>
+                  <td className="px-4 py-2.5">{t.model || '—'}</td>
+                  <td className="px-4 py-2.5">{t.trap_size || '—'}</td>
+                  <td className="px-4 py-2.5">{t.connection_type || '—'}</td>
+                  <td className="px-4 py-2.5">{t.type}</td>
+                  <td className="px-4 py-2.5">{t.manufacturer || '—'}</td>
                   <td className="px-4 py-2.5">
                     <StatusBadge status={t.status} issueType={t.issue_type} />
                   </td>

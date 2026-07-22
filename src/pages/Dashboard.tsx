@@ -11,6 +11,7 @@ import { KPITrapListModal } from '../components/KPITrapListModal';
 import { KPIChartsPanel } from '../components/KPIChartsPanel';
 import { EquipmentCard } from '../components/EquipmentCard';
 import { PriorityQueuePanel } from '../components/PriorityQueuePanel';
+import { TrapRegisterPanel } from '../components/TrapRegisterPanel';
 import { EquipmentFormModal } from '../components/forms/EquipmentFormModal';
 import { DATA_VERSION } from '../data/seedData';
 
@@ -125,6 +126,8 @@ export function Dashboard() {
           </div>
         </section>
       </div>
+
+      <TrapRegisterPanel traps={views} />
 
       <EquipmentFormModal open={showAdd} onClose={() => setShowAdd(false)} />
       <EquipmentFormModal
