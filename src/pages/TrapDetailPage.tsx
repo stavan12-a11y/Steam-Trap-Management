@@ -185,35 +185,35 @@ export function TrapDetailPage() {
           </div>
         </div>
         <div className="grid grid-cols-1 gap-6 p-5 lg:grid-cols-2">
-          <dl className="grid grid-cols-[150px_1fr] items-baseline gap-x-4 gap-y-3.5">
-            <dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Area</dt>
-            <dd className="text-sm font-semibold text-slate-900">{displayValue(view.equipment_area)}</dd>
-            <dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Equipment</dt>
-            <dd className="text-sm font-semibold text-slate-900">
+          <dl className="grid grid-cols-[150px_1fr] items-baseline gap-x-4 gap-y-3.5 text-sm">
+            <dt className="font-bold text-slate-800">Area</dt>
+            <dd className="text-slate-700">{displayValue(view.equipment_area)}</dd>
+            <dt className="font-bold text-slate-800">Equipment</dt>
+            <dd>
               <Link to={`/equipment/${view.equipment_id}`} className="text-maroon-800 hover:underline">
                 {view.equipment_name}
               </Link>
             </dd>
-            <dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Trap ID</dt>
-            <dd className="font-mono text-sm font-bold text-slate-900">{view.tag}</dd>
-            <dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Location</dt>
-            <dd className="text-sm font-semibold text-slate-900">{view.location}</dd>
-            <dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Orientation</dt>
-            <dd className="text-sm font-semibold text-slate-900">{displayValue(view.orientation)}</dd>
-            <dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Line pressure</dt>
-            <dd className="text-sm font-semibold text-slate-900">{displayValue(view.line_pressure)}</dd>
+            <dt className="font-bold text-slate-800">Trap ID</dt>
+            <dd className="font-mono text-slate-700">{view.tag}</dd>
+            <dt className="font-bold text-slate-800">Location</dt>
+            <dd className="text-slate-700">{view.location}</dd>
+            <dt className="font-bold text-slate-800">Orientation</dt>
+            <dd className="text-slate-700">{displayValue(view.orientation)}</dd>
+            <dt className="font-bold text-slate-800">Line pressure</dt>
+            <dd className="text-slate-700">{displayValue(view.line_pressure)}</dd>
           </dl>
-          <dl className="grid grid-cols-[150px_1fr] items-baseline gap-x-4 gap-y-3.5">
-            <dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Trap model</dt>
-            <dd className="text-sm font-semibold text-slate-900">{displayValue(view.model)}</dd>
-            <dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Size (inch)</dt>
-            <dd className="text-sm font-semibold text-slate-900">{displayValue(view.trap_size)}</dd>
-            <dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Trap connection</dt>
-            <dd className="text-sm font-semibold text-slate-900">{displayValue(view.connection_type)}</dd>
-            <dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Trap type</dt>
-            <dd className="text-sm font-semibold text-slate-900">{view.type}</dd>
-            <dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Manufacturer</dt>
-            <dd className="text-sm font-semibold text-slate-900">{displayValue(view.manufacturer)}</dd>
+          <dl className="grid grid-cols-[150px_1fr] items-baseline gap-x-4 gap-y-3.5 text-sm">
+            <dt className="font-bold text-slate-800">Trap model</dt>
+            <dd className="text-slate-700">{displayValue(view.model)}</dd>
+            <dt className="font-bold text-slate-800">Size (inch)</dt>
+            <dd className="text-slate-700">{displayValue(view.trap_size)}</dd>
+            <dt className="font-bold text-slate-800">Trap connection</dt>
+            <dd className="text-slate-700">{displayValue(view.connection_type)}</dd>
+            <dt className="font-bold text-slate-800">Trap type</dt>
+            <dd className="text-slate-700">{view.type}</dd>
+            <dt className="font-bold text-slate-800">Manufacturer</dt>
+            <dd className="text-slate-700">{displayValue(view.manufacturer)}</dd>
           </dl>
         </div>
       </div>
