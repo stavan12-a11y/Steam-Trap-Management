@@ -41,6 +41,15 @@
   .label {
     @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500;
   }
+
+  /* Trap faceplate: emphasize field names, keep values plain */
+  .faceplate-label {
+    @apply text-xs font-bold uppercase tracking-wide text-maroon-900;
+  }
+
+  .faceplate-value {
+    @apply text-sm font-normal text-slate-700;
+  }
 }
 
 /* Slim, modern scrollbars */
