@@ -151,7 +151,7 @@ export function ImportDataModal({ open, onClose }: ImportDataModalProps) {
               <ModeCard
                 selected={mode === 'replace'}
                 title="Replace all"
-                description="Clear demo/current data, then load only what is in your file. Best for first-time uploads."
+                description="Replace the current register with only what is in your file. Use for a full re-upload."
                 onSelect={() => setMode('replace')}
               />
             </div>

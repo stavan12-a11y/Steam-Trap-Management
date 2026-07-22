@@ -23,7 +23,7 @@ import type {
   TrapStatus,
 } from '../types';
 import { ISSUE_TYPES, DEFAULT_TRAP_DATASHEET } from '../types';
-import { seedData, DATA_VERSION } from '../data/seedData';
+import { DATA_VERSION } from '../data/seedData';
 import { todayISO } from '../utils/logic';
 import { upsertTodayKPISnapshot } from '../utils/kpiSnapshots';
 import { uid } from '../utils/id';
@@ -85,13 +85,21 @@ function normalizeData(raw: AppData): AppData {
     shutdown_deferrals: raw.shutdown_deferrals ?? [],
     engineering_reviews: raw.engineering_reviews ?? [],
     kpi_snapshots: raw.kpi_snapshots ?? [],
-    data_version: raw.data_version ?? 1,
+    // Advance schema version without replacing user content.
+    data_version: DATA_VERSION,
   };
 }
 
-export function isStaleData(data: AppData): boolean {
-  return (data.data_version ?? 1) < DATA_VERSION;
-}
+const EMPTY_DATA: AppData = {
+  equipment: [],
+  traps: [],
+  pm_records: [],
+  maintenance_records: [],
+  shutdown_deferrals: [],
+  engineering_reviews: [],
+  kpi_snapshots: [],
+  data_version: DATA_VERSION,
+};
 
 function loadData(): AppData {
   try {
@@ -99,16 +107,13 @@ function loadData(): AppData {
     if (raw) {
       const parsed = JSON.parse(raw) as AppData;
       if (parsed?.equipment && parsed?.traps && parsed?.pm_records) {
-        const normalized = normalizeData(parsed);
-        if (!isStaleData(normalized)) {
-          return normalized;
-        }
+        return normalizeData(parsed);
       }
     }
   } catch {
     // fall through
   }
-  return structuredClone(seedData);
+  return structuredClone(EMPTY_DATA);
 }
 
 interface SteamTrapContextValue {
@@ -232,25 +237,11 @@ interface SteamTrapContextValue {
 
   deleteEngineeringReview: (id: string) => void;
 
-  resetToSeed: () => void;
-  clearAll: () => void;
-
   /** Bulk-import traps (and equipment) from a filled Excel template. */
   importTrapRegister: (rows: TrapImportRow[], mode: ImportMode) => ImportApplyResult;
 }
 
 const SteamTrapContext = createContext<SteamTrapContextValue | null>(null);
-
-const EMPTY_DATA: AppData = {
-  equipment: [],
-  traps: [],
-  pm_records: [],
-  maintenance_records: [],
-  shutdown_deferrals: [],
-  engineering_reviews: [],
-  kpi_snapshots: [],
-  data_version: DATA_VERSION,
-};
 
 export function SteamTrapProvider({ children }: { children: ReactNode }) {
   const { authed } = useAuth();
@@ -298,17 +289,16 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
 
       if (!error && row?.data) {
         applyingRemote.current = true;
-        const normalized = normalizeData(row.data as AppData);
-        setData(isStaleData(normalized) ? structuredClone(seedData) : normalized);
+        setData(normalizeData(row.data as AppData));
       } else if (!error) {
-        const seed = structuredClone(seedData);
+        const empty = structuredClone(EMPTY_DATA);
         await sb.from(STATE_TABLE).upsert({
           id: STATE_ROW_ID,
-          data: seed,
+          data: empty,
           updated_at: new Date().toISOString(),
         });
         applyingRemote.current = true;
-        setData(seed);
+        setData(empty);
       }
       setSynced(true);
       setSyncStatus(error ? 'error' : 'saved');
@@ -323,8 +313,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
           const incoming = (payload.new as { data?: AppData } | null)?.data;
           if (incoming) {
             applyingRemote.current = true;
-            const normalized = normalizeData(incoming);
-            setData(isStaleData(normalized) ? structuredClone(seedData) : normalized);
+            setData(normalizeData(incoming));
             setSyncStatus('saved');
           }
         },
@@ -760,12 +749,6 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const resetToSeed = useCallback(
-    () => setData(structuredClone(seedData)),
-    [],
-  );
-  const clearAll = useCallback(() => setData(structuredClone(EMPTY_DATA)), []);
-
   const importTrapRegister = useCallback((rows: TrapImportRow[], mode: ImportMode) => {
     let result: ImportApplyResult = {
       equipmentCreated: 0,
@@ -807,8 +790,6 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
       addEngineeringReview,
       updateEngineeringReview,
       deleteEngineeringReview,
-      resetToSeed,
-      clearAll,
       importTrapRegister,
     }),
     [
@@ -835,8 +816,6 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
       addEngineeringReview,
       updateEngineeringReview,
       deleteEngineeringReview,
-      resetToSeed,
-      clearAll,
       importTrapRegister,
     ],
   );
