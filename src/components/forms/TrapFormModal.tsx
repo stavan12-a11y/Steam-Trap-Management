@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSteamTrap } from '../../store/SteamTrapContext';
-import { CONNECTION_TYPES, ORIENTATIONS, TRAP_TYPES, type TrapTypeName } from '../../types';
+import { CONNECTION_TYPES, ORIENTATIONS, TRAP_TYPES } from '../../types';
 import { Modal } from '../Modal';
 import { Field } from '../Field';
 
@@ -16,7 +16,7 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
   const editing = trapId ? data.traps.find((t) => t.id === trapId) : undefined;
 
   const [tag, setTag] = useState('');
-  const [type, setType] = useState<TrapTypeName>(TRAP_TYPES[0]);
+  const [type, setType] = useState('');
   const [location, setLocation] = useState('');
   const [equipmentId, setEquipmentId] = useState('');
   const [manufacturer, setManufacturer] = useState('');
@@ -46,7 +46,7 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
       setInstallDate(editing.install_date ?? '');
     } else {
       setTag('');
-      setType(TRAP_TYPES[0]);
+      setType('');
       setLocation('');
       setEquipmentId(defaultEquipmentId ?? data.equipment[0]?.id ?? '');
       setManufacturer('');
@@ -61,7 +61,7 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
     setError(null);
   }, [open, defaultEquipmentId, data.equipment, editing]);
 
-  const canSave = tag.trim() !== '' && equipmentId !== '';
+  const canSave = tag.trim() !== '' && type.trim() !== '' && equipmentId !== '';
 
   const handleSave = () => {
     if (!canSave) return;
@@ -75,7 +75,7 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
 
     const payload = {
       tag: tag.trim(),
-      type,
+      type: type.trim(),
       location: location.trim() || 'Unspecified',
       equipment_id: equipmentId,
       manufacturer: manufacturer.trim(),
@@ -119,13 +119,19 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
           <input className="input" value={tag} onChange={(e) => setTag(e.target.value)} placeholder="ST-0017" />
         </Field>
         <Field label="Trap type" required>
-          <select className="input" value={type} onChange={(e) => setType(e.target.value as TrapTypeName)}>
+          <input
+            className="input"
+            list="trap-type-suggestions"
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            placeholder="e.g. Bucket, Inverted Bucket"
+          />
+          <datalist id="trap-type-suggestions">
             {TRAP_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
+              <option key={t} value={t} />
             ))}
-          </select>
+            <option value="Bucket" />
+          </datalist>
         </Field>
         <Field label="Equipment" required>
           <select className="input" value={equipmentId} onChange={(e) => setEquipmentId(e.target.value)}>
@@ -145,14 +151,18 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
           />
         </Field>
         <Field label="Orientation">
-          <select className="input" value={orientation} onChange={(e) => setOrientation(e.target.value)}>
-            <option value="">— Select —</option>
+          <input
+            className="input"
+            list="orientation-suggestions"
+            value={orientation}
+            onChange={(e) => setOrientation(e.target.value)}
+            placeholder="e.g. Horizontal"
+          />
+          <datalist id="orientation-suggestions">
             {ORIENTATIONS.map((o) => (
-              <option key={o} value={o}>
-                {o}
-              </option>
+              <option key={o} value={o} />
             ))}
-          </select>
+          </datalist>
         </Field>
         <Field label="Line pressure">
           <input
@@ -179,18 +189,18 @@ export function TrapFormModal({ open, onClose, defaultEquipmentId, trapId }: Tra
           />
         </Field>
         <Field label="Trap connection">
-          <select
+          <input
             className="input"
+            list="connection-suggestions"
             value={connectionType}
             onChange={(e) => setConnectionType(e.target.value)}
-          >
-            <option value="">— Select —</option>
+            placeholder="e.g. NPT Threaded"
+          />
+          <datalist id="connection-suggestions">
             {CONNECTION_TYPES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
+              <option key={c} value={c} />
             ))}
-          </select>
+          </datalist>
         </Field>
         <Field label="Size (inch)">
           <input

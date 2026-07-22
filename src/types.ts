@@ -60,7 +60,8 @@ export interface Equipment {
 export interface Trap {
   id: string;
   tag: string;
-  type: TrapTypeName;
+  /** Free-text trap type (e.g. Inverted Bucket, Bucket, Thermodynamic). */
+  type: string;
   location: string;
   equipment_id: string;
   manufacturer: string;

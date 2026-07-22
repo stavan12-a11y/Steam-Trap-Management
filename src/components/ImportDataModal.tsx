@@ -126,8 +126,8 @@ export function ImportDataModal({ open, onClose }: ImportDataModalProps) {
             <h3 className="text-sm font-bold text-slate-900">1. Download template</h3>
             <p className="mt-1 text-sm text-slate-600">
               The workbook includes a <span className="font-semibold">Traps</span> sheet with the
-              columns you need, example rows, and an Allowed Values reference for trap types and
-              connection types.
+              columns you need, example rows, and an Examples sheet (suggestions only — any text
+              values are accepted on upload).
             </p>
             <button type="button" className="btn-primary mt-3" onClick={downloadTrapImportTemplate}>
               <Download className="h-4 w-4" />
