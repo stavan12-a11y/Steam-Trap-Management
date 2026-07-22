@@ -236,11 +236,13 @@ export function TrapDetailPage() {
                       <div className="space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-mono text-sm font-semibold">{r.date}</span>
-                          <StatusBadge status={r.status} issueType={r.issue_type} />
+                          <StatusBadge status={r.status} issueType={r.issue_type} result={r.result} />
                         </div>
                         <p className="text-xs text-slate-500">Technician: {r.technician}</p>
                         {r.notes && (
-                          <p className="break-words text-sm text-slate-700">{r.notes}</p>
+                          <p className="break-words text-sm text-slate-700">
+                            <span className="font-semibold text-slate-500">Notes:</span> {r.notes}
+                          </p>
                         )}
                         <div className="flex gap-3">
                           <button

@@ -180,6 +180,7 @@ export function buildSeedDatabase(): Database {
       date: daysAgo(dateDaysAgo),
       status,
       issue_type: status === "Issue" ? issue_type : null,
+      result: '',
       technician,
       notes,
       created_at: ts(dateDaysAgo),

@@ -57,7 +57,13 @@ function normalizeData(raw: AppData): AppData {
   return {
     equipment: (raw.equipment ?? []).map(({ id, name, area }) => ({ id, name, area })),
     traps: (raw.traps ?? []).map((t) => normalizeTrap(t)),
-    pm_records: raw.pm_records ?? [],
+    pm_records: (raw.pm_records ?? []).map((r) => ({
+      ...r,
+      result: r.result ?? '',
+      issue_type: r.issue_type ?? null,
+      technician: r.technician ?? 'Unknown',
+      notes: r.notes ?? '',
+    })),
     maintenance_records: raw.maintenance_records ?? [],
     shutdown_deferrals: raw.shutdown_deferrals ?? [],
     engineering_reviews: raw.engineering_reviews ?? [],
@@ -426,6 +432,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
           date: (input.date ?? '').trim() || todayISO(),
           status: input.status,
           issue_type: input.status === 'Issue' ? (input.issue_type ?? null) : null,
+          result: '',
           technician: (input.technician ?? '').trim() || 'Unknown',
           notes: (input.notes ?? '').trim(),
           created_at: new Date().toISOString(),
@@ -731,6 +738,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
       trapsCreated: 0,
       trapsUpdated: 0,
       trapsSkipped: 0,
+      inspectionsCreated: 0,
     };
     commitData((d) => {
       const applied = applyTrapImport(d, rows, mode);

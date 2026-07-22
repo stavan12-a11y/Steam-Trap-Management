@@ -2,21 +2,24 @@ import * as XLSX from 'xlsx';
 import {
   CONNECTION_TYPES,
   DEFAULT_TRAP_DATASHEET,
+  ISSUE_TYPES,
   ORIENTATIONS,
+  TRAP_STATUSES,
   TRAP_TYPES,
   type AppData,
   type Equipment,
+  type IssueType,
+  type PMRecord,
   type Trap,
+  type TrapStatus,
 } from '../types';
 import { DATA_VERSION } from '../data/seedData';
 import { uid } from './id';
 import { downloadExcel, type ExportSheet } from './export';
 
 /**
- * Canonical upload columns — order matches the field survey list:
- * Area → Equipment → Trap ID → Location → Orientation → Line Pressure →
- * Trap Model → Size (inch) → Trap Connection → Trap Type → Manufacturer
- *
+ * Canonical upload columns:
+ * Datasheet fields + optional one-time inspection history columns.
  * All values are free text — no enum restrictions on import.
  */
 export const TRAP_TEMPLATE_HEADERS = [
@@ -31,6 +34,9 @@ export const TRAP_TEMPLATE_HEADERS = [
   'Trap Connection',
   'Trap Type',
   'Manufacturer',
+  'Inspection Date',
+  'Inspection Result',
+  'Inspection Notes',
 ] as const;
 
 export type TrapTemplateHeader = (typeof TRAP_TEMPLATE_HEADERS)[number];
@@ -49,6 +55,9 @@ export interface TrapImportRow {
   line_pressure: string;
   serial_number: string;
   install_date: string | null;
+  inspection_date: string | null;
+  inspection_result: string;
+  inspection_notes: string;
   /** 1-based Excel row number for error messages. */
   rowNumber: number;
 }
@@ -71,6 +80,7 @@ export interface ImportApplyResult {
   trapsCreated: number;
   trapsUpdated: number;
   trapsSkipped: number;
+  inspectionsCreated: number;
 }
 
 const HEADER_ALIASES: Record<string, TrapTemplateHeader> = {
@@ -98,6 +108,15 @@ const HEADER_ALIASES: Record<string, TrapTemplateHeader> = {
   type: 'Trap Type',
   manufacturer: 'Manufacturer',
   mfr: 'Manufacturer',
+  'inspection date': 'Inspection Date',
+  'pm date': 'Inspection Date',
+  'last inspection date': 'Inspection Date',
+  'inspection result': 'Inspection Result',
+  result: 'Inspection Result',
+  'pm result': 'Inspection Result',
+  'inspection notes': 'Inspection Notes',
+  notes: 'Inspection Notes',
+  'pm notes': 'Inspection Notes',
 };
 
 function cellStr(value: unknown): string {
@@ -116,6 +135,101 @@ function normalizeHeader(raw: unknown): TrapTemplateHeader | null {
   return HEADER_ALIASES[key] ?? null;
 }
 
+/** Convert an Excel serial date (days since 1899-12-30) to YYYY-MM-DD. */
+function excelSerialToISO(serial: number): string | null {
+  if (!Number.isFinite(serial) || serial < 1) return null;
+  const whole = Math.floor(serial);
+  const utc = Date.UTC(1899, 11, 30) + whole * 86400000;
+  const d = new Date(utc);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+/** Accepts YYYY-MM-DD, MM/DD/YYYY, or Excel date serials. */
+export function parseFlexibleDate(value: unknown): string | null {
+  if (value === null || value === undefined || value === '') return null;
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const fromSSF =
+      typeof XLSX.SSF?.parse_date_code === 'function'
+        ? XLSX.SSF.parse_date_code(value)
+        : null;
+    if (fromSSF) {
+      const y = String(fromSSF.y).padStart(4, '0');
+      const m = String(fromSSF.m).padStart(2, '0');
+      const d = String(fromSSF.d).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    return excelSerialToISO(value);
+  }
+
+  const s = cellStr(value);
+  if (!s) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  const slash = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slash) {
+    const [, mm, dd, yyyy] = slash;
+    return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+  }
+
+  const asDate = new Date(s);
+  if (!Number.isNaN(asDate.getTime())) {
+    return asDate.toISOString().slice(0, 10);
+  }
+
+  return null;
+}
+
+/**
+ * Maps free-text inspection results onto Working/Issue for schedule/KPI logic.
+ * The original free-text is always kept in `result` for Inspection History display.
+ */
+export function mapInspectionResult(result: string): {
+  status: TrapStatus;
+  issue_type: IssueType | null;
+} {
+  const raw = result.trim();
+  if (!raw) return { status: 'Working', issue_type: null };
+
+  const lower = raw.toLowerCase();
+
+  for (const s of TRAP_STATUSES) {
+    if (s.toLowerCase() === lower) {
+      return { status: s, issue_type: null };
+    }
+  }
+
+  for (const it of ISSUE_TYPES) {
+    if (it.toLowerCase() === lower) {
+      return { status: 'Issue', issue_type: it };
+    }
+  }
+
+  if (
+    /^(ok|okay|good|pass|passed|healthy|normal|satisfactory|acceptable)$/i.test(lower) ||
+    /\b(working|ok|pass(ed)?|good|healthy)\b/i.test(lower)
+  ) {
+    return { status: 'Working', issue_type: null };
+  }
+
+  if (
+    /\b(fail|failed|failure|issue|blow|blowing|block|blocked|leak|leaking|cycling|bad|defect|defective|replace|fault)\b/i.test(
+      lower,
+    )
+  ) {
+    return { status: 'Issue', issue_type: null };
+  }
+
+  // Unknown free-text: keep schedule healthy; show exact text in history.
+  return { status: 'Working', issue_type: null };
+}
+
 function exampleRows(): unknown[][] {
   return [
     [
@@ -130,6 +244,9 @@ function exampleRows(): unknown[][] {
       'NPT Threaded',
       'Float & Thermostatic',
       'Spirax Sarco',
+      '2026-03-15',
+      'Working',
+      'Ultrasonic check OK',
     ],
     [
       'Central Utility',
@@ -143,6 +260,9 @@ function exampleRows(): unknown[][] {
       'Flanged',
       'Bucket',
       'Armstrong',
+      '2026-02-20',
+      'Cold trap — possible blocked',
+      'Needs follow-up',
     ],
     [
       'Distribution',
@@ -156,6 +276,9 @@ function exampleRows(): unknown[][] {
       'Socket Weld',
       'Thermodynamic',
       'TLV',
+      '',
+      '',
+      '',
     ],
   ];
 }
@@ -165,22 +288,24 @@ function buildInstructionsSheet(): ExportSheet {
     name: 'Instructions',
     headers: ['Field', 'Required', 'Notes'],
     rows: [
-      ['Area', 'No', 'Shown on the equipment faceplate. Used when creating new equipment; ignored if that equipment already exists.'],
-      ['Equipment', 'Yes', 'Equipment name this trap belongs to. New equipment is created automatically if the name is new.'],
-      ['Trap ID', 'Yes', 'Unique trap identifier (e.g. ST-1001). Duplicate IDs update existing traps in Merge mode.'],
-      ['Location', 'No', 'Physical location of the trap. Defaults to "Unspecified" if blank.'],
-      ['Orientation', 'No', 'Free text (e.g. Horizontal, Vertical). Any value is accepted.'],
+      ['Area', 'No', 'Shown on the equipment faceplate.'],
+      ['Equipment', 'Yes', 'Equipment name. Created automatically if new.'],
+      ['Trap ID', 'Yes', 'Unique trap identifier.'],
+      ['Location', 'No', 'Physical location of the trap.'],
+      ['Orientation', 'No', 'Free text.'],
       ['Line Pressure', 'No', 'Free text (e.g. 150 psig).'],
-      ['Trap Model', 'No', 'Free text manufacturer model number.'],
-      ['Size (inch)', 'No', 'Free text size in inches (e.g. 1/2, 3/4, 1).'],
-      ['Trap Connection', 'No', 'Free text (e.g. NPT Threaded, Flanged). Any value is accepted.'],
-      ['Trap Type', 'Yes', 'Free text — any type is accepted (e.g. Bucket, Inverted Bucket, Float & Thermostatic, Thermodynamic).'],
-      ['Manufacturer', 'No', 'Free text trap manufacturer.'],
+      ['Trap Model', 'No', 'Free text.'],
+      ['Size (inch)', 'No', 'Free text.'],
+      ['Trap Connection', 'No', 'Free text.'],
+      ['Trap Type', 'Yes', 'Free text — any type accepted.'],
+      ['Manufacturer', 'No', 'Free text.'],
+      ['Inspection Date', 'No', 'Optional one-time inspection date (YYYY-MM-DD or MM/DD/YYYY). Shown in Inspection History, not the faceplate.'],
+      ['Inspection Result', 'No', 'Free text for this historical upload (e.g. Working, Cold trap, OK). Future inspections logged in the app use the predetermined options.'],
+      ['Inspection Notes', 'No', 'Free-text notes shown in Inspection History.'],
       ['', '', ''],
-      ['How to use', '', '1) Fill rows on the Traps sheet (replace or keep the example rows). 2) Save the file. 3) On the dashboard, click Import data… and upload this workbook.'],
-      ['Merge mode', '', 'Adds new traps and updates existing traps that share the same Trap ID. Existing equipment is reused by name.'],
-      ['Replace mode', '', 'Clears all current equipment, traps, and history, then imports only what is in this file.'],
-      ['Validation', '', 'No restricted lists. Only Trap ID, Equipment, and Trap Type are required (non-blank). All other fields accept any text.'],
+      ['How to use', '', 'Fill the Traps sheet, save, then Dashboard → Import data…'],
+      ['Replace mode', '', 'Clears current data, then imports traps + any inspection rows.'],
+      ['Validation', '', 'No restricted lists for types/results. Only Trap ID, Equipment, and Trap Type must be non-blank.'],
     ],
   };
 }
@@ -322,6 +447,9 @@ export function parseTrapImportFile(buffer: ArrayBuffer, filename = ''): ParsedT
     const trapSize = cellStr(get(row, 'Size (inch)'));
     const orientation = cellStr(get(row, 'Orientation'));
     const linePressure = cellStr(get(row, 'Line Pressure'));
+    const inspectionDateRaw = get(row, 'Inspection Date');
+    const inspection_result = cellStr(get(row, 'Inspection Result'));
+    const inspection_notes = cellStr(get(row, 'Inspection Notes'));
 
     if (!tag) {
       errors.push({ rowNumber, message: 'Trap ID is required.' });
@@ -334,6 +462,22 @@ export function parseTrapImportFile(buffer: ArrayBuffer, filename = ''): ParsedT
     if (!type) {
       errors.push({ rowNumber, message: 'Trap Type is required.' });
       continue;
+    }
+
+    let inspection_date = parseFlexibleDate(inspectionDateRaw);
+    if (cellStr(inspectionDateRaw) && !inspection_date) {
+      warnings.push({
+        rowNumber,
+        message: `Could not parse Inspection Date "${cellStr(inspectionDateRaw)}"; inspection will be skipped for this row.`,
+      });
+    }
+
+    // If they provided result/notes but no date, warn and skip inspection only.
+    if (!inspection_date && (inspection_result || inspection_notes)) {
+      warnings.push({
+        rowNumber,
+        message: 'Inspection Result/Notes provided without Inspection Date; trap will import but no inspection history entry will be created.',
+      });
     }
 
     const tagKey = tag.toLowerCase();
@@ -360,6 +504,9 @@ export function parseTrapImportFile(buffer: ArrayBuffer, filename = ''): ParsedT
       line_pressure: linePressure,
       serial_number: '',
       install_date: null,
+      inspection_date,
+      inspection_result,
+      inspection_notes,
       rowNumber,
     };
     if (existingIdx >= 0) rows[existingIdx] = parsed;
@@ -371,8 +518,7 @@ export function parseTrapImportFile(buffer: ArrayBuffer, filename = ''): ParsedT
 
 /**
  * Applies parsed trap rows onto an AppData snapshot.
- * - merge: create/reuse equipment by name; create or update traps by tag
- * - replace: start from empty history and import only these traps
+ * Optional Inspection Date/Result/Notes create PM history entries.
  */
 export function applyTrapImport(
   current: AppData,
@@ -395,6 +541,7 @@ export function applyTrapImport(
           ...current,
           equipment: [...current.equipment],
           traps: [...current.traps],
+          pm_records: [...current.pm_records],
           data_version: current.data_version ?? DATA_VERSION,
         };
 
@@ -411,6 +558,7 @@ export function applyTrapImport(
   let equipmentCreated = 0;
   let trapsCreated = 0;
   let trapsUpdated = 0;
+  let inspectionsCreated = 0;
 
   for (const row of rows) {
     const eqKey = row.equipment_name.trim().toLowerCase();
@@ -444,17 +592,42 @@ export function applyTrapImport(
       install_date: row.install_date,
     };
 
+    let trapId: string;
     if (existing) {
       const updated: Trap = { ...existing, ...payload, id: existing.id };
       const idx = base.traps.findIndex((t) => t.id === existing.id);
       if (idx >= 0) base.traps[idx] = updated;
       trapByTag.set(tagKey, updated);
       trapsUpdated += 1;
+      trapId = existing.id;
     } else {
       const created: Trap = { ...payload, id: uid('tr') };
       base.traps.push(created);
       trapByTag.set(tagKey, created);
       trapsCreated += 1;
+      trapId = created.id;
+    }
+
+    if (row.inspection_date) {
+      const already = base.pm_records.some(
+        (r) => r.trap_id === trapId && r.date === row.inspection_date,
+      );
+      if (!already) {
+        const mapped = mapInspectionResult(row.inspection_result);
+        const record: PMRecord = {
+          id: uid('pm'),
+          trap_id: trapId,
+          date: row.inspection_date,
+          status: mapped.status,
+          issue_type: mapped.issue_type,
+          result: row.inspection_result.trim(),
+          technician: 'Imported',
+          notes: row.inspection_notes.trim(),
+          created_at: new Date().toISOString(),
+        };
+        base.pm_records.push(record);
+        inspectionsCreated += 1;
+      }
     }
   }
 
@@ -465,6 +638,7 @@ export function applyTrapImport(
       trapsCreated,
       trapsUpdated,
       trapsSkipped: 0,
+      inspectionsCreated,
     },
   };
 }

@@ -76,6 +76,7 @@ export function ImportDataModal({ open, onClose }: ImportDataModalProps) {
       `${result.trapsCreated} trap${result.trapsCreated === 1 ? '' : 's'} added`,
       `${result.trapsUpdated} updated`,
       `${result.equipmentCreated} equipment created`,
+      `${result.inspectionsCreated} inspection${result.inspectionsCreated === 1 ? '' : 's'} imported`,
     ];
     setResultSummary(parts.join(' · '));
     setStep('done');
@@ -125,9 +126,11 @@ export function ImportDataModal({ open, onClose }: ImportDataModalProps) {
           <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <h3 className="text-sm font-bold text-slate-900">1. Download template</h3>
             <p className="mt-1 text-sm text-slate-600">
-              The workbook includes a <span className="font-semibold">Traps</span> sheet with the
-              columns you need, example rows, and an Examples sheet (suggestions only — any text
-              values are accepted on upload).
+              The workbook includes a <span className="font-semibold">Traps</span> sheet with
+              datasheet columns plus optional <span className="font-semibold">Inspection Date</span>,{' '}
+              <span className="font-semibold">Inspection Result</span>, and{' '}
+              <span className="font-semibold">Inspection Notes</span> (shown in Inspection History).
+              Any text values are accepted on upload.
             </p>
             <button type="button" className="btn-primary mt-3" onClick={downloadTrapImportTemplate}>
               <Download className="h-4 w-4" />
@@ -228,9 +231,8 @@ export function ImportDataModal({ open, onClose }: ImportDataModalProps) {
                         <th className="px-3 py-2 font-semibold">Trap ID</th>
                         <th className="px-3 py-2 font-semibold">Type</th>
                         <th className="px-3 py-2 font-semibold">Equipment</th>
-                        <th className="px-3 py-2 font-semibold">Area</th>
-                        <th className="px-3 py-2 font-semibold">Location</th>
-                        <th className="px-3 py-2 font-semibold">Model</th>
+                        <th className="px-3 py-2 font-semibold">Inspection</th>
+                        <th className="px-3 py-2 font-semibold">Result</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -239,9 +241,8 @@ export function ImportDataModal({ open, onClose }: ImportDataModalProps) {
                           <td className="px-3 py-2 font-medium text-slate-900">{r.tag}</td>
                           <td className="px-3 py-2 text-slate-600">{r.type}</td>
                           <td className="px-3 py-2 text-slate-600">{r.equipment_name}</td>
-                          <td className="px-3 py-2 text-slate-600">{r.equipment_area}</td>
-                          <td className="px-3 py-2 text-slate-600">{r.location}</td>
-                          <td className="px-3 py-2 text-slate-600">{r.model || '—'}</td>
+                          <td className="px-3 py-2 text-slate-600">{r.inspection_date ?? '—'}</td>
+                          <td className="px-3 py-2 text-slate-600">{r.inspection_result || '—'}</td>
                         </tr>
                       ))}
                     </tbody>

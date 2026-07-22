@@ -82,6 +82,12 @@ export interface PMRecord {
   date: string; // ISO date (YYYY-MM-DD)
   status: TrapStatus;
   issue_type: IssueType | null;
+  /**
+   * Free-text inspection result (used for historical Excel uploads).
+   * When set, shown in Inspection History instead of the Working/Issue badge label.
+   * Future UI-logged PMs use the predetermined status options and leave this blank.
+   */
+  result: string;
   technician: string;
   notes: string;
   created_at: string; // ISO timestamp

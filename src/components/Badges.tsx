@@ -23,10 +23,29 @@ export function PriorityBadge({ priority }: { priority: Priority }) {
 export function StatusBadge({
   status,
   issueType,
+  result,
 }: {
   status: TrapStatus | null;
   issueType?: IssueType | null;
+  /** Free-text result from historical upload — shown when present. */
+  result?: string | null;
 }) {
+  if (result?.trim()) {
+    const isIssue = status === 'Issue';
+    return (
+      <span
+        className={`${BASE} ${
+          isIssue
+            ? 'bg-red-100 text-red-800 ring-red-600/20'
+            : 'bg-emerald-100 text-emerald-800 ring-emerald-600/20'
+        }`}
+        title={isIssue ? 'Imported inspection result (treated as issue for priority)' : 'Imported inspection result'}
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
+        {result.trim()}
+      </span>
+    );
+  }
   if (status === null) {
     return <span className={`${BASE} bg-slate-100 text-slate-600 ring-slate-500/20`}>No PM</span>;
   }
