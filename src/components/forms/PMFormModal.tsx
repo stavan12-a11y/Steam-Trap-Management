@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, Power } from 'lucide-react';
 import { useSteamTrap } from '../../store/SteamTrapContext';
 import { buildTrapView } from '../../utils/logic';
+import { mapInspectionResult } from '../../utils/importTemplate';
 import {
   ISSUE_TYPES,
   type InspectionSource,
@@ -11,7 +12,7 @@ import {
 import { Modal } from '../Modal';
 import { Field } from '../Field';
 
-type PMOutcome = TrapStatus | 'Shutdown';
+type PMOutcome = TrapStatus | 'Shutdown' | 'Custom';
 
 interface PMFormModalProps {
   open: boolean;
@@ -54,6 +55,7 @@ export function PMFormModal({
   const [outcome, setOutcome] = useState<PMOutcome>('Working');
   const [date, setDate] = useState(todayLocal());
   const [issueType, setIssueType] = useState<IssueType>(ISSUE_TYPES[0]);
+  const [customResult, setCustomResult] = useState('');
   const [technician, setTechnician] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -65,8 +67,15 @@ export function PMFormModal({
       setDate(existingDeferral.recorded_date);
       setTechnician(existingDeferral.technician);
       setNotes(existingDeferral.notes);
+      setCustomResult('');
     } else if (existing) {
-      setOutcome(existing.status);
+      if (existing.result?.trim()) {
+        setOutcome('Custom');
+        setCustomResult(existing.result.trim());
+      } else {
+        setOutcome(existing.status);
+        setCustomResult('');
+      }
       setDate(existing.date);
       setIssueType(existing.issue_type ?? ISSUE_TYPES[0]);
       setTechnician(existing.technician);
@@ -75,6 +84,7 @@ export function PMFormModal({
       setOutcome('Working');
       setDate(todayLocal());
       setIssueType(ISSUE_TYPES[0]);
+      setCustomResult('');
       setTechnician(isTlv ? 'TLV' : '');
       setNotes('');
     }
@@ -104,10 +114,35 @@ export function PMFormModal({
       return;
     }
 
+    if (outcome === 'Custom') {
+      if (!customResult.trim()) {
+        setError('Enter a custom inspection result.');
+        return;
+      }
+      const mapped = mapInspectionResult(customResult);
+      const input = {
+        date,
+        status: mapped.status,
+        issue_type: mapped.issue_type,
+        result: customResult.trim(),
+        technician,
+        notes,
+        source: effectiveSource,
+      };
+      const res = recordId ? updatePM(recordId, input) : addPM(trapId, input);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      onClose();
+      return;
+    }
+
     const input = {
       date,
       status: outcome,
       issue_type: outcome === 'Issue' ? issueType : null,
+      result: '',
       technician,
       notes,
       source: effectiveSource,
@@ -122,6 +157,7 @@ export function PMFormModal({
   };
 
   const isShutdown = outcome === 'Shutdown';
+  const isCustom = outcome === 'Custom';
   const kindLabel = isTlv ? 'TLV survey' : 'PM';
   const submitLabel = deferralId || recordId
     ? 'Save changes'
@@ -176,6 +212,17 @@ export function PMFormModal({
                 {s}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => setOutcome('Custom')}
+              className={`rounded-lg border px-4 py-2 text-sm font-semibold ${
+                outcome === 'Custom'
+                  ? 'border-maroon-800 bg-maroon-900 text-white'
+                  : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              Custom…
+            </button>
             {showShutdownOption && (
               <button
                 type="button"
@@ -217,6 +264,22 @@ export function PMFormModal({
             </select>
           </Field>
         )}
+
+        {isCustom && (
+          <Field label="Custom result" required>
+            <input
+              className="input"
+              value={customResult}
+              onChange={(e) => setCustomResult(e.target.value)}
+              placeholder='e.g. Cold trap — possible blocked, OK, needs follow-up…'
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Only clearly good wording (Working, OK, Good, Pass, etc.) counts as working for fleet
+              reliability; other text is treated as an issue.
+            </p>
+          </Field>
+        )}
+
         <Field label="Technician">
           <input
             className="input"

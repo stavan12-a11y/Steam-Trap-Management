@@ -133,6 +133,7 @@ interface SteamTrapContextValue {
       date?: string;
       status: TrapStatus;
       issue_type?: IssueType | null;
+      result?: string;
       technician?: string;
       notes?: string;
       source?: InspectionSource;
@@ -145,6 +146,7 @@ interface SteamTrapContextValue {
       date?: string;
       status?: TrapStatus;
       issue_type?: IssueType | null;
+      result?: string;
       technician?: string;
       notes?: string;
     },
@@ -424,6 +426,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
         date?: string;
         status: TrapStatus;
         issue_type?: IssueType | null;
+        result?: string;
         technician?: string;
         notes?: string;
         source?: InspectionSource;
@@ -437,7 +440,8 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
       commitData((d) => {
         const trap = d.traps.find((t) => t.id === trapId);
         if (!trap) return d;
-        if (input.status === 'Issue') {
+        const customResult = (input.result ?? '').trim();
+        if (input.status === 'Issue' && !customResult) {
           const it = input.issue_type;
           if (!it || !ISSUE_TYPES.includes(it)) {
             result = { ok: false, error: "Issue type is required when status is 'Issue'" };
@@ -451,8 +455,9 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
           trap_id: trapId,
           date: (input.date ?? '').trim() || todayISO(),
           status: input.status,
-          issue_type: input.status === 'Issue' ? (input.issue_type ?? null) : null,
-          result: '',
+          issue_type:
+            input.status === 'Issue' ? (input.issue_type ?? null) : null,
+          result: customResult,
           source,
           technician:
             (input.technician ?? '').trim() || (source === 'tlv' ? 'TLV' : 'Unknown'),
@@ -475,6 +480,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
         date?: string;
         status?: TrapStatus;
         issue_type?: IssueType | null;
+        result?: string;
         technician?: string;
         notes?: string;
       },
@@ -489,9 +495,14 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
         }
 
         const status = input.status ?? existing.status;
-        const issue_type = status === 'Issue' ? (input.issue_type ?? existing.issue_type) : null;
+        const customResult =
+          input.result !== undefined ? input.result.trim() : existing.result;
+        const issue_type =
+          status === 'Issue'
+            ? (input.issue_type !== undefined ? input.issue_type : existing.issue_type)
+            : null;
 
-        if (status === 'Issue') {
+        if (status === 'Issue' && !customResult) {
           const it = issue_type;
           if (!it || !ISSUE_TYPES.includes(it)) {
             result = { ok: false, error: "Issue type is required when status is 'Issue'" };
@@ -508,6 +519,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
                   date: (input.date ?? r.date).trim() || r.date,
                   status,
                   issue_type,
+                  result: customResult,
                   technician: (input.technician ?? r.technician).trim() || r.technician,
                   notes: (input.notes ?? r.notes).trim(),
                 }
