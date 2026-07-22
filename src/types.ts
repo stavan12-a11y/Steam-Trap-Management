@@ -22,6 +22,10 @@ export type Orientation = (typeof ORIENTATIONS)[number];
 export const TRAP_STATUSES = ["Working", "Issue"] as const;
 export type TrapStatus = (typeof TRAP_STATUSES)[number];
 
+/** Who performed the inspection — PM program vs TLV survey. */
+export const INSPECTION_SOURCES = ["pm", "tlv"] as const;
+export type InspectionSource = (typeof INSPECTION_SOURCES)[number];
+
 export const ISSUE_TYPES = ["Blowing", "Blocked", "Leak", "Cycling"] as const;
 export type IssueType = (typeof ISSUE_TYPES)[number];
 
@@ -83,11 +87,13 @@ export interface PMRecord {
   status: TrapStatus;
   issue_type: IssueType | null;
   /**
-   * Free-text inspection result (used for historical Excel uploads).
+   * Free-text inspection result (used for historical Excel / TLV uploads).
    * When set, shown in Inspection History instead of the Working/Issue badge label.
-   * Future UI-logged PMs use the predetermined status options and leave this blank.
+   * UI-logged PM inspections use predetermined status options and leave this blank.
    */
   result: string;
+  /** PM program inspection vs TLV survey inspection. */
+  source: InspectionSource;
   technician: string;
   notes: string;
   created_at: string; // ISO timestamp
@@ -185,8 +191,14 @@ export type AppData = Database;
 export interface TrapView extends Trap {
   equipment_name: string;
   equipment_area: string;
+  /** Latest condition from PM or TLV (whichever is newer). */
   status: TrapStatus | null;
   issue_type: IssueType | null;
+  /** Free-text result from the latest inspection, if any. */
+  latest_result: string;
+  /** Source of the latest condition inspection. */
+  latest_source: InspectionSource | null;
+  /** Last PM-program inspection date only (TLV does not reset PM schedule). */
   last_pm_date: string | null;
   next_pm_date: string | null;
   days_until_due: number | null;

@@ -59,13 +59,18 @@ export function priorityRank(p: Priority): number {
   return PRIORITY_RANK[p];
 }
 
-/** Returns the most recent PM record for a trap (by date, then created_at). */
+/** Returns the most recent PM/TLV record for a trap (by date, then created_at). */
 export function latestRecord(records: PMRecord[]): PMRecord | null {
   if (records.length === 0) return null;
   return [...records].sort((a, b) => {
     if (a.date !== b.date) return a.date < b.date ? 1 : -1;
     return a.created_at < b.created_at ? 1 : -1;
   })[0];
+}
+
+/** Records for one inspection source. */
+export function recordsForSource(records: PMRecord[], source: PMRecord['source']): PMRecord[] {
+  return records.filter((r) => (r.source ?? 'pm') === source);
 }
 
 /** All PM records for a trap, newest first. */
@@ -247,6 +252,8 @@ export function trapHasAlert(view: TrapView, type: TrapAlert['type']): boolean {
 
 /**
  * Derives the full current-state view of a trap, including computed priority.
+ * Condition/status uses the latest inspection across PM and TLV.
+ * PM schedule (last/next PM) uses PM-program inspections only.
  * Priority precedence: Issue → Overdue → Upcoming → Never inspected → Healthy.
  */
 export function buildTrapView(
@@ -257,14 +264,17 @@ export function buildTrapView(
 ): TrapView {
   const records = db.pm_records.filter((r) => r.trap_id === trap.id);
   const reviews = engineeringReviewsForTrap(db, trap.id);
-  const latest = latestRecord(records);
+  const latestCondition = latestRecord(records);
+  const latestPm = latestRecord(recordsForSource(records, 'pm'));
   const interval = pmIntervalDays();
   const review = evaluateEngineeringReview(records, reviews, today);
   const alerts = buildTrapAlerts(records, reviews, today);
 
-  const last_pm_date = latest ? latest.date : null;
-  const status = latest ? latest.status : null;
-  const issue_type = latest ? latest.issue_type : null;
+  const last_pm_date = latestPm ? latestPm.date : null;
+  const status = latestCondition ? latestCondition.status : null;
+  const issue_type = latestCondition ? latestCondition.issue_type : null;
+  const latest_result = latestCondition?.result?.trim() ?? '';
+  const latest_source = latestCondition ? (latestCondition.source ?? 'pm') : null;
 
   const next_pm_date = last_pm_date ? addDays(last_pm_date, interval) : null;
   const days_until_due = next_pm_date ? daysBetween(today, next_pm_date) : null;
@@ -272,8 +282,11 @@ export function buildTrapView(
   let priority: Priority;
   if (status === 'Issue') {
     priority = 'Issue';
-  } else if (!last_pm_date) {
+  } else if (!last_pm_date && !latestCondition) {
     priority = 'Never inspected';
+  } else if (!last_pm_date) {
+    // TLV surveyed but no PM yet — not on PM schedule; treat by condition only.
+    priority = status === 'Working' ? 'Healthy' : 'Issue';
   } else if (days_until_due !== null && days_until_due < 0) {
     priority = 'Overdue';
   } else if (days_until_due !== null && days_until_due <= UPCOMING_WINDOW_DAYS) {
@@ -288,6 +301,8 @@ export function buildTrapView(
     equipment_area: equipment.area,
     status,
     issue_type,
+    latest_result,
+    latest_source,
     last_pm_date,
     next_pm_date,
     days_until_due,
@@ -321,7 +336,7 @@ export function scheduleListTraps(views: TrapView[]): TrapView[] {
 
 /** Traps needing repair or follow-up action (active issues and smart alerts). */
 export function repairsListTraps(views: TrapView[]): TrapView[] {
-  return views.filter((v) => v.priority === 'Issue' || v.alert_count > 0);
+  return views.filter((v) => v.status === 'Issue' || v.alert_count > 0);
 }
 
 /** Sort by priority urgency, then by how overdue (most overdue first), then tag. */
@@ -351,13 +366,18 @@ export function countShutdownDeferredTraps(data: Database): number {
 
 export function computeKPIs(views: TrapView[], data?: Database): KPIs {
   const total = views.length;
-  const active_issues = views.filter((v) => v.priority === 'Issue').length;
+  // Condition based on latest PM or TLV inspection — only explicitly good = Working.
+  const active_issues = views.filter((v) => v.status === 'Issue').length;
+  const inspected = views.filter((v) => v.status !== null).length;
+  const working = views.filter((v) => v.status === 'Working').length;
+  const fleet_reliability_rate =
+    inspected > 0 ? Math.round((working / inspected) * 100) : total === 0 ? 100 : 0;
 
   return {
     total_traps: total,
     active_issues,
     overdue_pm: views.filter((v) => v.priority === 'Overdue').length,
-    fleet_reliability_rate: total > 0 ? Math.round(((total - active_issues) / total) * 100) : 100,
+    fleet_reliability_rate,
     shutdown_deferred_traps: data ? countShutdownDeferredTraps(data) : 0,
   };
 }
@@ -475,7 +495,7 @@ export interface IssueTypeCount {
 export function activeIssuesByType(views: TrapView[]): IssueTypeCount[] {
   const counts = new Map<IssueType, number>();
   for (const v of views) {
-    if (v.priority === 'Issue' && v.issue_type) {
+    if (v.status === 'Issue' && v.issue_type) {
       counts.set(v.issue_type, (counts.get(v.issue_type) ?? 0) + 1);
     }
   }
@@ -522,7 +542,7 @@ export function issuesByEquipment(views: TrapView[]): EquipmentIssueCount[] {
     const name = v.equipment_name || 'Unassigned';
     const cur = byEquipment.get(name) ?? { issues: 0, traps: 0 };
     cur.traps++;
-    if (v.priority === 'Issue') cur.issues++;
+    if (v.status === 'Issue') cur.issues++;
     byEquipment.set(name, cur);
   }
   return [...byEquipment.entries()]
@@ -553,7 +573,7 @@ export function equipmentRollups(
       name: eq.name,
       area: eq.area,
       trap_count: eqViews.length,
-      issue_count: eqViews.filter((v) => v.priority === 'Issue').length,
+      issue_count: eqViews.filter((v) => v.status === 'Issue').length,
       overdue_count: eqViews.filter((v) => v.priority === 'Overdue').length,
       engineering_review_count: eqViews.filter((v) => v.engineering_review_required).length,
       smart_alert_count: eqViews.filter((v) => v.alert_count > 0).length,

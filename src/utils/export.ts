@@ -97,6 +97,7 @@ export function buildInspectionSheet(data: AppData, trapId?: string): ExportShee
 
   const headers = [
     'Record Type',
+    'Source',
     'Date',
     'Trap Tag',
     'Trap Type',
@@ -118,6 +119,7 @@ export function buildInspectionSheet(data: AppData, trapId?: string): ExportShee
     for (const r of recordsForTrap(data, trap.id)) {
       rows.push([
         'PM Inspection',
+        (r.source ?? 'pm') === 'tlv' ? 'TLV' : 'PM',
         r.date,
         trap.tag,
         trap.type,
@@ -135,6 +137,7 @@ export function buildInspectionSheet(data: AppData, trapId?: string): ExportShee
     for (const sd of shutdownDeferralsForTrap(data, trap.id)) {
       rows.push([
         'Equipment Shutdown',
+        'PM',
         sd.recorded_date,
         trap.tag,
         trap.type,
@@ -156,6 +159,7 @@ export function buildInspectionSheet(data: AppData, trapId?: string): ExportShee
           : '';
       rows.push([
         'Engineering Review',
+        'PM',
         er.review_date,
         trap.tag,
         trap.type,
@@ -234,8 +238,9 @@ export function buildTrapRegisterSheet(data: AppData): ExportSheet {
     'Trap Connection',
     'Trap Type',
     'Manufacturer',
-    'Priority',
     'Status',
+    'Inspection Result',
+    'Latest Source',
     'Issue Type',
     'Last PM Date',
     'Next PM Date',
@@ -257,8 +262,9 @@ export function buildTrapRegisterSheet(data: AppData): ExportSheet {
     v.connection_type,
     v.type,
     v.manufacturer,
-    v.priority,
     v.status ?? 'Never inspected',
+    v.latest_result,
+    v.latest_source === 'tlv' ? 'TLV' : v.latest_source === 'pm' ? 'PM' : '',
     v.issue_type ?? '',
     v.last_pm_date ?? '',
     v.next_pm_date ?? '',

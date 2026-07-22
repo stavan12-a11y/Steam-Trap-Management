@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { TrapView } from '../types';
-import { PriorityBadge } from './Badges';
+import { StatusBadge } from './Badges';
 
 function display(value: string | null | undefined): string {
   return value?.trim() ? value : '—';
@@ -30,6 +30,8 @@ export function TrapRegisterPanel({ traps }: TrapRegisterPanelProps) {
         t.connection_type,
         t.type,
         t.manufacturer,
+        t.latest_result,
+        t.status ?? '',
       ]
         .join(' ')
         .toLowerCase()
@@ -43,7 +45,8 @@ export function TrapRegisterPanel({ traps }: TrapRegisterPanelProps) {
         <div>
           <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">Trap Register</h3>
           <p className="mt-0.5 text-xs text-slate-500">
-            Area, equipment, and trap datasheet fields from your uploaded workbook.
+            Area, equipment, and trap datasheet fields from your uploaded workbook. Status reflects
+            the latest TLV or PM inspection.
           </p>
         </div>
         <input
@@ -74,7 +77,7 @@ export function TrapRegisterPanel({ traps }: TrapRegisterPanelProps) {
                 <th className="px-3 py-2.5">Trap connection</th>
                 <th className="px-3 py-2.5">Trap type</th>
                 <th className="px-3 py-2.5">Manufacturer</th>
-                <th className="px-3 py-2.5">Priority</th>
+                <th className="px-3 py-2.5">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -106,7 +109,7 @@ export function TrapRegisterPanel({ traps }: TrapRegisterPanelProps) {
                   <td className="px-3 py-2.5 text-slate-700">{t.type}</td>
                   <td className="px-3 py-2.5 text-slate-700">{display(t.manufacturer)}</td>
                   <td className="px-3 py-2.5">
-                    <PriorityBadge priority={t.priority} />
+                    <StatusBadge status={t.status} issueType={t.issue_type} result={t.latest_result} />
                   </td>
                 </tr>
               ))}

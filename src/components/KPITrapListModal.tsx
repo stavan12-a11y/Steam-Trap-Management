@@ -4,7 +4,7 @@ import { dueLabel } from '../utils/format';
 import type { KPIClickKey } from '../utils/kpiFilters';
 import { KPI_MODAL_DESCRIPTIONS, KPI_MODAL_TITLES } from '../utils/kpiFilters';
 import { Modal } from './Modal';
-import { PriorityBadge, StatusBadge } from './Badges';
+import { StatusBadge } from './Badges';
 import { TrapAlertBadges } from './TrapAlerts';
 
 interface KPITrapListModalProps {
@@ -38,7 +38,6 @@ export function KPITrapListModal({ open, onClose, kpiKey, traps }: KPITrapListMo
             <thead>
               <tr className="border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 <th className="px-3 py-2">Tag</th>
-                <th className="px-3 py-2">Priority</th>
                 <th className="px-3 py-2">Equipment</th>
                 <th className="px-3 py-2">Status</th>
                 <th className="px-3 py-2 text-right">Due</th>
@@ -62,12 +61,9 @@ export function KPITrapListModal({ open, onClose, kpiKey, traps }: KPITrapListMo
                     )}
                     <p className="mt-0.5 text-xs text-slate-500">{t.location}</p>
                   </td>
-                  <td className="px-3 py-2.5">
-                    <PriorityBadge priority={t.priority} />
-                  </td>
                   <td className="px-3 py-2.5 text-slate-700">{t.equipment_name}</td>
                   <td className="px-3 py-2.5">
-                    <StatusBadge status={t.status} issueType={t.issue_type} />
+                    <StatusBadge status={t.status} issueType={t.issue_type} result={t.latest_result} />
                   </td>
                   <td className="px-3 py-2.5 text-right text-xs text-slate-600">
                     {dueLabel(t.days_until_due, t.priority)}

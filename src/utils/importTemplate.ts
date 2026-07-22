@@ -4,7 +4,6 @@ import {
   DEFAULT_TRAP_DATASHEET,
   ISSUE_TYPES,
   ORIENTATIONS,
-  TRAP_STATUSES,
   TRAP_TYPES,
   type AppData,
   type Equipment,
@@ -188,6 +187,7 @@ export function parseFlexibleDate(value: unknown): string | null {
 
 /**
  * Maps free-text inspection results onto Working/Issue for schedule/KPI logic.
+ * Only explicitly "good" results count as Working — everything else is Issue.
  * The original free-text is always kept in `result` for Inspection History display.
  */
 export function mapInspectionResult(result: string): {
@@ -195,15 +195,9 @@ export function mapInspectionResult(result: string): {
   issue_type: IssueType | null;
 } {
   const raw = result.trim();
-  if (!raw) return { status: 'Working', issue_type: null };
+  if (!raw) return { status: 'Issue', issue_type: null };
 
   const lower = raw.toLowerCase();
-
-  for (const s of TRAP_STATUSES) {
-    if (s.toLowerCase() === lower) {
-      return { status: s, issue_type: null };
-    }
-  }
 
   for (const it of ISSUE_TYPES) {
     if (it.toLowerCase() === lower) {
@@ -211,23 +205,26 @@ export function mapInspectionResult(result: string): {
     }
   }
 
+  if (lower === 'issue') {
+    return { status: 'Issue', issue_type: null };
+  }
+
+  // Explicitly good / working outcomes only.
   if (
-    /^(ok|okay|good|pass|passed|healthy|normal|satisfactory|acceptable)$/i.test(lower) ||
-    /\b(working|ok|pass(ed)?|good|healthy)\b/i.test(lower)
+    lower === 'working' ||
+    /^(ok|okay|good|pass|passed|healthy|normal|satisfactory|acceptable|go)$/i.test(lower) ||
+    /^(working|good condition|no issue|no issues|passed inspection)$/i.test(lower)
   ) {
     return { status: 'Working', issue_type: null };
   }
 
-  if (
-    /\b(fail|failed|failure|issue|blow|blowing|block|blocked|leak|leaking|cycling|bad|defect|defective|replace|fault)\b/i.test(
-      lower,
-    )
-  ) {
-    return { status: 'Issue', issue_type: null };
+  if (/\b(working|ok|okay|good|pass(ed)?|healthy|satisfactory)\b/i.test(lower) &&
+      !/\b(not|no|fail|issue|cold|block|blow|leak|bad)\b/i.test(lower)) {
+    return { status: 'Working', issue_type: null };
   }
 
-  // Unknown free-text: keep schedule healthy; show exact text in history.
-  return { status: 'Working', issue_type: null };
+  // Any other free-text result (cold, blocked, leaking, needs repair, etc.) = not good.
+  return { status: 'Issue', issue_type: null };
 }
 
 function exampleRows(): unknown[][] {
@@ -299,9 +296,9 @@ function buildInstructionsSheet(): ExportSheet {
       ['Trap Connection', 'No', 'Free text.'],
       ['Trap Type', 'Yes', 'Free text — any type accepted.'],
       ['Manufacturer', 'No', 'Free text.'],
-      ['Inspection Date', 'No', 'Optional one-time inspection date (YYYY-MM-DD or MM/DD/YYYY). Shown in Inspection History, not the faceplate.'],
-      ['Inspection Result', 'No', 'Free text for this historical upload (e.g. Working, Cold trap, OK). Future inspections logged in the app use the predetermined options.'],
-      ['Inspection Notes', 'No', 'Free-text notes shown in Inspection History.'],
+      ['Inspection Date', 'No', 'Optional TLV survey date (YYYY-MM-DD or MM/DD/YYYY). Shown under Inspection History → TLV, not on the faceplate. Does not start the PM schedule.'],
+      ['Inspection Result', 'No', 'Free text TLV result. Only clearly good results (Working, OK, Good, Pass, etc.) count as working for fleet reliability; all other results count as issues.'],
+      ['Inspection Notes', 'No', 'Free-text notes shown in TLV Inspection History.'],
       ['', '', ''],
       ['How to use', '', 'Fill the Traps sheet, save, then Dashboard → Import data…'],
       ['Replace mode', '', 'Clears current data, then imports traps + any inspection rows.'],
@@ -621,7 +618,8 @@ export function applyTrapImport(
           status: mapped.status,
           issue_type: mapped.issue_type,
           result: row.inspection_result.trim(),
-          technician: 'Imported',
+          source: 'tlv',
+          technician: 'TLV',
           notes: row.inspection_notes.trim(),
           created_at: new Date().toISOString(),
         };

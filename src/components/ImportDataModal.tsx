@@ -129,8 +129,9 @@ export function ImportDataModal({ open, onClose }: ImportDataModalProps) {
               The workbook includes a <span className="font-semibold">Traps</span> sheet with
               datasheet columns plus optional <span className="font-semibold">Inspection Date</span>,{' '}
               <span className="font-semibold">Inspection Result</span>, and{' '}
-              <span className="font-semibold">Inspection Notes</span> (shown in Inspection History).
-              Any text values are accepted on upload.
+              <span className="font-semibold">Inspection Notes</span> for TLV surveys (shown under
+              Inspection History → TLV). Only clearly good results count as working for fleet
+              reliability.
             </p>
             <button type="button" className="btn-primary mt-3" onClick={downloadTrapImportTemplate}>
               <Download className="h-4 w-4" />

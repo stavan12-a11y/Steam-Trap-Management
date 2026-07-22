@@ -181,6 +181,7 @@ export function buildSeedDatabase(): Database {
       status,
       issue_type: status === "Issue" ? issue_type : null,
       result: '',
+      source: 'pm' as const,
       technician,
       notes,
       created_at: ts(dateDaysAgo),

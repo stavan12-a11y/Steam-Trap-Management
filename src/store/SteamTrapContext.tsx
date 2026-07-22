@@ -28,6 +28,7 @@ import { upsertTodayKPISnapshot } from '../utils/kpiSnapshots';
 import { uid } from '../utils/id';
 import {
   applyTrapImport,
+  mapInspectionResult,
   type ImportApplyResult,
   type ImportMode,
   type TrapImportRow,
@@ -57,13 +58,28 @@ function normalizeData(raw: AppData): AppData {
   return {
     equipment: (raw.equipment ?? []).map(({ id, name, area }) => ({ id, name, area })),
     traps: (raw.traps ?? []).map((t) => normalizeTrap(t)),
-    pm_records: (raw.pm_records ?? []).map((r) => ({
-      ...r,
-      result: r.result ?? '',
-      issue_type: r.issue_type ?? null,
-      technician: r.technician ?? 'Unknown',
-      notes: r.notes ?? '',
-    })),
+    pm_records: (raw.pm_records ?? []).map((r) => {
+      const result = r.result ?? '';
+      const inferredSource =
+        r.source ??
+        (r.technician === 'TLV' || r.technician === 'Imported' || result.trim() !== ''
+          ? 'tlv'
+          : 'pm');
+      // Re-classify free-text TLV/imported results so fleet reliability stays accurate.
+      const remapped =
+        inferredSource === 'tlv' && result.trim()
+          ? mapInspectionResult(result)
+          : { status: r.status, issue_type: r.issue_type ?? null };
+      return {
+        ...r,
+        result,
+        source: inferredSource,
+        status: remapped.status,
+        issue_type: remapped.issue_type,
+        technician: r.technician ?? 'Unknown',
+        notes: r.notes ?? '',
+      };
+    }),
     maintenance_records: raw.maintenance_records ?? [],
     shutdown_deferrals: raw.shutdown_deferrals ?? [],
     engineering_reviews: raw.engineering_reviews ?? [],
@@ -433,6 +449,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
           status: input.status,
           issue_type: input.status === 'Issue' ? (input.issue_type ?? null) : null,
           result: '',
+          source: 'pm',
           technician: (input.technician ?? '').trim() || 'Unknown',
           notes: (input.notes ?? '').trim(),
           created_at: new Date().toISOString(),

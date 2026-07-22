@@ -5,7 +5,7 @@ import { useSteamTrap } from '../store/SteamTrapContext';
 import { allTrapViews, sortByPriority } from '../utils/logic';
 import { dueLabel } from '../utils/format';
 import { Breadcrumbs } from '../components/Breadcrumbs';
-import { PriorityBadge, StatusBadge } from '../components/Badges';
+import { StatusBadge } from '../components/Badges';
 import { TrapAlertBadges } from '../components/TrapAlerts';
 import { TrapFormModal } from '../components/forms/TrapFormModal';
 
@@ -111,7 +111,6 @@ export function TrapsPage() {
             <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <th className="px-4 py-2.5">Trap ID</th>
-                  <th className="px-4 py-2.5">Priority</th>
                   <th className="px-4 py-2.5">Area</th>
                   <th className="px-4 py-2.5">Equipment</th>
                   <th className="px-4 py-2.5">Location</th>
@@ -140,9 +139,6 @@ export function TrapsPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2.5">
-                    <PriorityBadge priority={t.priority} />
-                  </td>
                   <td className="px-4 py-2.5">{t.equipment_area || '—'}</td>
                   <td className="px-4 py-2.5">
                     <Link to={`/equipment/${t.equipment_id}`} className="text-maroon-800 hover:underline">
@@ -158,7 +154,7 @@ export function TrapsPage() {
                   <td className="px-4 py-2.5">{t.type}</td>
                   <td className="px-4 py-2.5">{t.manufacturer || '—'}</td>
                   <td className="px-4 py-2.5">
-                    <StatusBadge status={t.status} issueType={t.issue_type} />
+                    <StatusBadge status={t.status} issueType={t.issue_type} result={t.latest_result} />
                   </td>
                   <td className="px-4 py-2.5 text-right text-xs">{dueLabel(t.days_until_due, t.priority)}</td>
                   <td className="px-4 py-2.5">

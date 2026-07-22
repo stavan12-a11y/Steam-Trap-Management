@@ -2,11 +2,12 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, ClipboardCheck, FileSpreadsheet, Pencil, Plus, ShieldCheck, Wrench } from 'lucide-react';
 import { useSteamTrap } from '../store/SteamTrapContext';
-import type { PMRecord, ShutdownDeferral } from '../types';
+import type { InspectionSource, PMRecord, ShutdownDeferral } from '../types';
 import {
   buildTrapView,
   engineeringReviewsForTrap,
   maintenanceForTrap,
+  recordsForSource,
   recordsForTrap,
   shutdownDeferralsForTrap,
 } from '../utils/logic';
@@ -14,7 +15,6 @@ import { Breadcrumbs } from '../components/Breadcrumbs';
 import {
   EngineeringReviewOutcomeBadge,
   MaintenanceActionBadge,
-  PriorityBadge,
   ShutdownDeferralBadge,
   StatusBadge,
 } from '../components/Badges';
@@ -69,8 +69,17 @@ export function TrapDetailPage() {
     () => (trapId ? engineeringReviewsForTrap(data, trapId) : []),
     [data, trapId],
   );
-  const history = useMemo(
-    () => mergeHistory(records, shutdownDeferrals),
+
+  const [historySource, setHistorySource] = useState<InspectionSource>('tlv');
+  const history = useMemo(() => {
+    const scoped = recordsForSource(records, historySource);
+    // Shutdown deferrals belong with the PM program tab only.
+    return mergeHistory(scoped, historySource === 'pm' ? shutdownDeferrals : []);
+  }, [records, shutdownDeferrals, historySource]);
+
+  const tlvCount = useMemo(() => recordsForSource(records, 'tlv').length, [records]);
+  const pmCount = useMemo(
+    () => recordsForSource(records, 'pm').length + shutdownDeferrals.length,
     [records, shutdownDeferrals],
   );
 
@@ -120,7 +129,12 @@ export function TrapDetailPage() {
           <p className="text-sm text-slate-500">{view.location}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <PriorityBadge priority={view.priority} />
+          <StatusBadge status={view.status} issueType={view.issue_type} result={view.latest_result} />
+          {view.latest_source && (
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600 ring-1 ring-inset ring-slate-500/20">
+              Latest: {view.latest_source === 'tlv' ? 'TLV' : 'PM'}
+            </span>
+          )}
           <TrapAlertBadges alerts={view.alerts} />
           <button className="btn-primary" onClick={() => openPm()}>
             <ClipboardCheck className="h-4 w-4" />
@@ -170,7 +184,7 @@ export function TrapDetailPage() {
             Trap Faceplate
           </h3>
           <div className="flex items-center gap-2">
-            <StatusBadge status={view.status} issueType={view.issue_type} />
+            <StatusBadge status={view.status} issueType={view.issue_type} result={view.latest_result} />
             <button className="btn-secondary text-xs" onClick={() => setTrapEditOpen(true)}>
               <Pencil className="h-3.5 w-3.5" />
               Edit
@@ -213,14 +227,49 @@ export function TrapDetailPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
         <div className="card p-5">
-          <div className="mb-4 flex items-center justify-between gap-2">
-            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">
-              Inspection History
-            </h3>
-            <span className="shrink-0 text-xs text-slate-400">{history.length} records</span>
+          <div className="mb-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">
+                Inspection History
+              </h3>
+              <span className="shrink-0 text-xs text-slate-400">{history.length} records</span>
+            </div>
+            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+              <button
+                type="button"
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  historySource === 'tlv'
+                    ? 'bg-white text-maroon-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                onClick={() => setHistorySource('tlv')}
+              >
+                TLV ({tlvCount})
+              </button>
+              <button
+                type="button"
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  historySource === 'pm'
+                    ? 'bg-white text-maroon-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                onClick={() => setHistorySource('pm')}
+              >
+                PM ({pmCount})
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">
+              {historySource === 'tlv'
+                ? 'TLV survey inspections (from Excel upload). Trap status uses the latest result across TLV and PM.'
+                : 'PM program inspections. You have not started these yet — use Record PM when ready.'}
+            </p>
           </div>
           {history.length === 0 ? (
-            <p className="text-sm text-slate-500">No inspections recorded yet.</p>
+            <p className="text-sm text-slate-500">
+              {historySource === 'tlv'
+                ? 'No TLV inspections recorded yet. Import them via the Excel template.'
+                : 'No PM inspections recorded yet.'}
+            </p>
           ) : (
             <ul className="max-h-[32rem] space-y-4 overflow-y-auto border-l-2 border-slate-200 pl-4 pr-1">
               {history.map((entry) => {

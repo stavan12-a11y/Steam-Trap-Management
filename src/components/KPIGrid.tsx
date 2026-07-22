@@ -97,7 +97,7 @@ export function KPIGrid({ kpis, equipmentCount, onKpiClick }: KPIGridProps) {
         icon={CheckCircle2}
         accent="text-teal-700"
         iconBg="bg-teal-50"
-        hint="Traps not currently failing"
+        hint="% of inspected traps with a good result"
       />
     </div>
   );

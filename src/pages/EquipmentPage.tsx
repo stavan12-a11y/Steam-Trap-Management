@@ -5,7 +5,7 @@ import { useSteamTrap } from '../store/SteamTrapContext';
 import { allTrapViews, sortByPriority } from '../utils/logic';
 import { dueLabel } from '../utils/format';
 import { Breadcrumbs } from '../components/Breadcrumbs';
-import { PriorityBadge, StatusBadge } from '../components/Badges';
+import { StatusBadge } from '../components/Badges';
 import { TrapAlertBadges } from '../components/TrapAlerts';
 import { TrapFormModal } from '../components/forms/TrapFormModal';
 
@@ -31,7 +31,7 @@ export function EquipmentPage() {
     );
   }
 
-  const issues = traps.filter((t) => t.priority === 'Issue').length;
+  const issues = traps.filter((t) => t.status === 'Issue').length;
   const overdue = traps.filter((t) => t.priority === 'Overdue').length;
   const engReviews = traps.filter((t) => t.engineering_review_required).length;
   const smartAlerts = traps.filter((t) => t.alert_count > 0).length;
@@ -83,7 +83,6 @@ export function EquipmentPage() {
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <th className="px-4 py-2.5">Trap ID</th>
-                  <th className="px-4 py-2.5">Priority</th>
                   <th className="px-4 py-2.5">Location</th>
                   <th className="px-4 py-2.5">Orientation</th>
                   <th className="px-4 py-2.5">Line pressure</th>
@@ -110,9 +109,6 @@ export function EquipmentPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-2.5">
-                      <PriorityBadge priority={v.priority} />
-                    </td>
                     <td className="px-4 py-2.5">{v.location}</td>
                     <td className="px-4 py-2.5">{v.orientation || '—'}</td>
                     <td className="px-4 py-2.5">{v.line_pressure || '—'}</td>
@@ -122,7 +118,7 @@ export function EquipmentPage() {
                     <td className="px-4 py-2.5">{v.type}</td>
                     <td className="px-4 py-2.5">{v.manufacturer || '—'}</td>
                     <td className="px-4 py-2.5">
-                      <StatusBadge status={v.status} issueType={v.issue_type} />
+                      <StatusBadge status={v.status} issueType={v.issue_type} result={v.latest_result} />
                     </td>
                     <td className="px-4 py-2.5 text-right font-mono text-xs">{v.next_pm_date ?? '—'}</td>
                     <td className="px-4 py-2.5 text-right text-xs">{dueLabel(v.days_until_due, v.priority)}</td>
