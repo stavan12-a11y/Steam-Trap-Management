@@ -248,28 +248,54 @@ export function TrapDetailPage() {
                 )}
               </div>
             </div>
-            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+            <div
+              role="tablist"
+              aria-label="Inspection history source"
+              className="grid grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-slate-100/80 p-1"
+            >
               <button
                 type="button"
-                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                role="tab"
+                aria-selected={historySource === 'tlv'}
+                className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-all ${
                   historySource === 'tlv'
-                    ? 'bg-white text-maroon-900 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-maroon-900 text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-white/70 hover:text-slate-900'
                 }`}
                 onClick={() => setHistorySource('tlv')}
               >
-                TLV ({tlvCount})
+                TLV survey
+                <span
+                  className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold tabular-nums ${
+                    historySource === 'tlv'
+                      ? 'bg-white/15 text-white'
+                      : 'bg-slate-200/80 text-slate-600'
+                  }`}
+                >
+                  {tlvCount}
+                </span>
               </button>
               <button
                 type="button"
-                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                role="tab"
+                aria-selected={historySource === 'pm'}
+                className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-all ${
                   historySource === 'pm'
-                    ? 'bg-white text-maroon-900 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-maroon-900 text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-white/70 hover:text-slate-900'
                 }`}
                 onClick={() => setHistorySource('pm')}
               >
-                PM ({pmCount})
+                PM
+                <span
+                  className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold tabular-nums ${
+                    historySource === 'pm'
+                      ? 'bg-white/15 text-white'
+                      : 'bg-slate-200/80 text-slate-600'
+                  }`}
+                >
+                  {pmCount}
+                </span>
               </button>
             </div>
             <p className="text-xs text-slate-500">
