@@ -136,11 +136,6 @@ export function TrapDetailPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={view.status} issueType={view.issue_type} result={view.latest_result} />
-          {view.latest_source && (
-            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600 ring-1 ring-inset ring-slate-500/20">
-              Latest: {view.latest_source === 'tlv' ? 'TLV' : 'PM'}
-            </span>
-          )}
           <TrapAlertBadges alerts={view.alerts} />
           <button
             className="btn-secondary"
