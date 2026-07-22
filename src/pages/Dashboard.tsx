@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, FileSpreadsheet, Plus, RotateCcw } from 'lucide-react';
+import { AlertTriangle, FileSpreadsheet, Plus, RotateCcw, Upload } from 'lucide-react';
 import { isStaleData, useSteamTrap } from '../store/SteamTrapContext';
 import { allTrapViews, computeKPIs, equipmentRollups, sortByPriority } from '../utils/logic';
 import type { KPIClickKey } from '../utils/kpiFilters';
 import { trapsForKpi } from '../utils/kpiFilters';
 import { ExportOptionsModal } from '../components/ExportOptionsModal';
+import { ImportDataModal } from '../components/ImportDataModal';
 import { KPIGrid } from '../components/KPIGrid';
 import { KPITrapListModal } from '../components/KPITrapListModal';
 import { KPIChartsPanel } from '../components/KPIChartsPanel';
@@ -18,6 +19,7 @@ export function Dashboard() {
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [kpiModalKey, setKpiModalKey] = useState<KPIClickKey | null>(null);
 
   const views = useMemo(() => sortByPriority(allTrapViews(data)), [data]);
@@ -62,6 +64,10 @@ export function Dashboard() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn-secondary" onClick={() => setImportOpen(true)}>
+            <Upload className="h-4 w-4" />
+            Import data…
+          </button>
           <button type="button" className="btn-primary" onClick={() => setExportOpen(true)}>
             <FileSpreadsheet className="h-4 w-4" />
             Export data…
@@ -91,12 +97,18 @@ export function Dashboard() {
             <div className="card p-10 text-center">
               <p className="font-semibold text-slate-600">No equipment yet</p>
               <p className="mt-1 text-sm text-slate-400">
-                Add your first piece of equipment to start tracking traps.
+                Add your first piece of equipment to start tracking traps, or import an Excel template.
               </p>
-              <button className="btn-primary mt-4 inline-flex" onClick={() => setShowAdd(true)}>
-                <Plus className="h-4 w-4" />
-                Add Equipment
-              </button>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <button className="btn-secondary inline-flex" onClick={() => setImportOpen(true)}>
+                  <Upload className="h-4 w-4" />
+                  Import Excel
+                </button>
+                <button className="btn-primary inline-flex" onClick={() => setShowAdd(true)}>
+                  <Plus className="h-4 w-4" />
+                  Add Equipment
+                </button>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -121,6 +133,7 @@ export function Dashboard() {
         onClose={() => setEditId(null)}
       />
       <ExportOptionsModal open={exportOpen} onClose={() => setExportOpen(false)} data={data} />
+      <ImportDataModal open={importOpen} onClose={() => setImportOpen(false)} />
       <KPITrapListModal
         open={kpiModalKey !== null}
         onClose={() => setKpiModalKey(null)}

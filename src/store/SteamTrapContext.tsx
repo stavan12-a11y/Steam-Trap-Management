@@ -26,6 +26,12 @@ import { seedData, DATA_VERSION } from '../data/seedData';
 import { todayISO } from '../utils/logic';
 import { upsertTodayKPISnapshot } from '../utils/kpiSnapshots';
 import { uid } from '../utils/id';
+import {
+  applyTrapImport,
+  type ImportApplyResult,
+  type ImportMode,
+  type TrapImportRow,
+} from '../utils/importTemplate';
 import { isSupabaseConfigured, STATE_ROW_ID, STATE_TABLE, supabase } from '../lib/supabase';
 import { useAuth } from '../auth/AuthContext';
 
@@ -202,6 +208,9 @@ interface SteamTrapContextValue {
 
   resetToSeed: () => void;
   clearAll: () => void;
+
+  /** Bulk-import traps (and equipment) from a filled Excel template. */
+  importTrapRegister: (rows: TrapImportRow[], mode: ImportMode) => ImportApplyResult;
 }
 
 const SteamTrapContext = createContext<SteamTrapContextValue | null>(null);
@@ -716,6 +725,21 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
   );
   const clearAll = useCallback(() => setData(structuredClone(EMPTY_DATA)), []);
 
+  const importTrapRegister = useCallback((rows: TrapImportRow[], mode: ImportMode) => {
+    let result: ImportApplyResult = {
+      equipmentCreated: 0,
+      trapsCreated: 0,
+      trapsUpdated: 0,
+      trapsSkipped: 0,
+    };
+    commitData((d) => {
+      const applied = applyTrapImport(d, rows, mode);
+      result = applied.result;
+      return applied.data;
+    });
+    return result;
+  }, [commitData]);
+
   const value = useMemo<SteamTrapContextValue>(
     () => ({
       data,
@@ -743,6 +767,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
       deleteEngineeringReview,
       resetToSeed,
       clearAll,
+      importTrapRegister,
     }),
     [
       data,
@@ -770,6 +795,7 @@ export function SteamTrapProvider({ children }: { children: ReactNode }) {
       deleteEngineeringReview,
       resetToSeed,
       clearAll,
+      importTrapRegister,
     ],
   );
 
