@@ -4,13 +4,15 @@ export type KPIClickKey =
   | 'total_traps'
   | 'active_issues'
   | 'overdue_pm'
-  | 'shutdown_deferred_traps';
+  | 'shutdown_deferred_traps'
+  | 'fleet_reliability';
 
 export const KPI_MODAL_TITLES: Record<KPIClickKey, string> = {
   total_traps: 'All Traps',
   active_issues: 'Active Issues',
   overdue_pm: 'Overdue PM',
   shutdown_deferred_traps: 'Shutdown Deferrals',
+  fleet_reliability: 'Working / Good Traps',
 };
 
 export const KPI_MODAL_DESCRIPTIONS: Record<KPIClickKey, string> = {
@@ -18,6 +20,8 @@ export const KPI_MODAL_DESCRIPTIONS: Record<KPIClickKey, string> = {
   active_issues: 'Traps whose latest PM or TLV inspection result is not good.',
   overdue_pm: 'Traps past their PM due date.',
   shutdown_deferred_traps: 'Traps with PM deferred due to equipment shutdown.',
+  fleet_reliability:
+    'Inspected traps with a clearly good latest result (Working / OK / Good / Pass, etc.). These are the traps counted in fleet reliability.',
 };
 
 export function trapsForKpi(
@@ -36,5 +40,7 @@ export function trapsForKpi(
       const deferredIds = new Set((data.shutdown_deferrals ?? []).map((d) => d.trap_id));
       return views.filter((v) => deferredIds.has(v.id));
     }
+    case 'fleet_reliability':
+      return views.filter((v) => v.status === 'Working');
   }
 }

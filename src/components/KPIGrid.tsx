@@ -98,6 +98,7 @@ export function KPIGrid({ kpis, equipmentCount, onKpiClick }: KPIGridProps) {
         accent="text-teal-700"
         iconBg="bg-teal-50"
         hint="% of inspected traps with a good result"
+        onClick={onKpiClick ? () => onKpiClick('fleet_reliability') : undefined}
       />
     </div>
   );
